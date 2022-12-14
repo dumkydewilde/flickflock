@@ -1,8 +1,9 @@
+import os
 from flask import Flask, request, jsonify
 from flickflock.tmdb import TMDB
 from flickflock.flock import Flock
 
-tmdb = TMDB()    
+tmdb = TMDB(api_key=os.environ.get("TMDB_API_KEY"))
 
 app = Flask(__name__)
 
@@ -116,4 +117,4 @@ def tmdb_movies_from_person(id):
 
 
 if __name__ == "__main__":
-    app.run(port=8080, debug=True)
+    app.run(port=int(os.environ.get("PORT", 8080)), debug=True)
