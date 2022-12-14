@@ -19,7 +19,7 @@ const { mdAndUp } = useDisplay()
       <v-container
       class="pa-3 fill-height" fluid 
       >      
-        <v-row><router-view/></v-row>
+        
         <v-row justify="start" class="mt-6"> 
           <v-col cols="12" lg="4" class="bg-primary mx-0 overflow-y-hidden" id="selection">
             <header class="ml-4 text-white" >
