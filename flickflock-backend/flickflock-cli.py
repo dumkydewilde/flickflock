@@ -51,7 +51,7 @@ def get_tmdb_people_from_query(n=50):
 
     print(f"\n\n### {tmdb.tmdb_requests} tmdb requests / {tmdb.cached_requests} cached ###")
 
-    return people[:n]
+    return (people[:n], selected_item["id"])
 
 def show_current_flock(flock):
     print("\n## Current flock ##\n")
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     add_works = True
     while add_works == True:
         people = get_tmdb_people_from_query()
-        flock.add_to_flock([p["id"] for p in people])
+        flock.add_to_flock([p["id"] for p in people[0]], primary_id=people[1])
 
         show_current_flock(flock)
 

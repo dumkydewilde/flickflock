@@ -46,15 +46,15 @@ def flock(flock_id):
     
     if request.method == "POST":
         data = request.get_json()
-        print(data)
+        
         for item in data.get("data", []):
             if item.get("media_type", None) == "person":
                 # if person, add person and find related persons
                 flock.add_to_flock(item["id"])
-                flock.add_to_flock([p["id"] for p in tmdb.get_person_relations(item["id"])])
+                flock.add_to_flock([p["id"] for p in tmdb.get_person_relations(item["id"])], item["id"])
             if item.get("media_type", None) and item.get("media_type") != "person":
                 # if work, find people from that work
-                flock.add_to_flock([p["id"] for p in tmdb.get_people_by_media_id(item["id"], item["media_type"])])
+                flock.add_to_flock([p["id"] for p in tmdb.get_people_by_media_id(item["id"], item["media_type"])], item["id"])
 
         return jsonify({
                     "flock_id": flock.flock_id,
@@ -117,4 +117,4 @@ def tmdb_movies_from_person(id):
 
 
 if __name__ == "__main__":
-    app.run(port=int(os.environ.get("PORT", 8080)), debug=True)
+    app.run(port=int(os.environ.get("PORT", 8080)),host="0.0.0.0", debug=True)

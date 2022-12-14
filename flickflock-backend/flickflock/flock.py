@@ -1,16 +1,22 @@
-import uuid, itertools
+import uuid, itertools, time
 from collections import Counter
 from diskcache import Cache 
-
-
+from google.cloud import firestore
 
 class Flock:
-    def __init__(self, name=None, flock_id=None):
-        self.db = Cache('.flock', statistics=True)
+    def __init__(self, name=None, flock_id=None, db_type="cloud"):
+        if db_type == "local":
+            self.db_type = "local"
+            self.db = Cache('.flock', statistics=True)
+        else:
+            self.db_type = "cloud"
+            self.db = firestore.Client().collection('flock')
+
+        
         self.flock = Counter()
         
         if flock_id:
-            flock_data = self.db.get(flock_id)
+            flock_data = self.get_from_db(flock_id)
         else:
             flock_data = None
             
@@ -23,6 +29,24 @@ class Flock:
             self.flock_name = name
             self.flock_entries = []
         
+    def get_from_db(self, key):
+        if self.db_type == "local":
+            return self.db.get(key, {})
+        else:
+            doc = self.db.document(key).get()
+            if doc.exists:
+                return doc.to_dict()
+            else: 
+                return {}
+
+    def set_in_db(self, key, value):
+        if self.db_type == "local":
+            self.db[key] = value
+            return
+        else:
+            print(key)
+            print(value)
+            self.db.document(key).set(value)
 
     def set_flock_name(self, name):
         self.flock_name = name
@@ -30,11 +54,17 @@ class Flock:
     def get_flock_id(self):
         return self.flock_id
 
-    def add_to_flock(self, entities):
-        if isinstance(entities, list):
-            self.flock_entries.append(entities)
-        else:
-            self.flock_entries.append([entities])
+    def add_to_flock(self, entities, primary_id=""):
+        if not isinstance(entities, list):
+            entities = [entities]
+            if primary_id == "":
+                primary_id = entities
+
+        self.flock_entries.append({
+            "entities" : entities,
+            "timestamp" : time.time(),
+            "primary_id" : primary_id
+            })
 
         return None
 
@@ -43,22 +73,21 @@ class Flock:
 
     def sync_flock(self):
         if self.flock_id:
-            flock_db = self.db.get(self.flock_id, {})
+            flock_db = self.get_from_db(self.flock_id)
             flock_current = {
                 "flock_id" : self.flock_id,
                 "flock_entries" : self.flock_entries,
                 "flock_name" : self.flock_name
             }
-            self.db[self.flock_id] ={
+            self.set_in_db(self.flock_id, {
                 **flock_db,
                 **flock_current
-            }
+            })
 
     def order_flock(self):
         """Order flock from history"""
-        self.flock_entries = [list(e) for e in set(tuple(e) for e in self.flock_entries)] # only unique entries
         self.sync_flock()
-        self.flock = Counter(list(itertools.chain(*self.flock_entries)))
+        self.flock = Counter(list(itertools.chain(*[e["entities"] for e in self.flock_entries])))
         return self.flock
 
     def get_flock(self, details_function=None, most_common=None):
