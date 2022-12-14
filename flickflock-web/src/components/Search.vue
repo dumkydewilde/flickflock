@@ -10,7 +10,7 @@
       variant="outlined"
       hide-details="auto"
       @input="isVisible = true"
-      @click:clear="this.searchResults = []; isVisible = false"
+      @click:clear="searchResults = []; isVisible = false"
     >
     <template v-slot:append-inner>
       <v-fade-transition leave-absolute>
@@ -54,7 +54,6 @@ export default {
     },
     watch: {
         searchQuery: _debounce(function (newVal) {
-            console.log(newVal);
             if (newVal == null || newVal.length < 1) {
                 this.searchResults = [];
                 this.isVisible = false

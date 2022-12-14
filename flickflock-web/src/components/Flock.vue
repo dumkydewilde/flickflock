@@ -9,7 +9,7 @@
       clearable 
       variant="outlined"
       hide-details="auto"
-      @click:clear="this.searchResults = []"
+      @click:clear="searchResults = []"
     >
     <template v-slot:append-inner>
       <v-fade-transition leave-absolute>

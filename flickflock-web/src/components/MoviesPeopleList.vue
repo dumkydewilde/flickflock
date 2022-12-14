@@ -27,14 +27,14 @@
             ></v-btn>
             <v-btn
                 v-if="linkOut"
-                :href="`https://www.themoviedb.org/${(result.media_type || this.mediaType)}/${result.id}`"
+                :href="`https://www.themoviedb.org/${(result.media_type || mediaType)}/${result.id}`"
                 icon="mdi-open-in-new" variant="text"
             ></v-btn>
             </template>
         <div class="fill-height align-self-start" :class="{'text-background': inverseColor}">
         <v-list-item-subtitle>
             <h3 class="text-overline">
-            {{ result.known_for_department ? result.known_for_department.toUpperCase() : (result.media_type || this.mediaType).toUpperCase() }} 
+            {{ result.known_for_department ? result.known_for_department.toUpperCase() : (result.media_type || mediaType).toUpperCase() }} 
             <v-icon icon="mdi-star" size="16px"></v-icon>
             {{ result.popularity }}
             </h3>
@@ -43,7 +43,7 @@
             <a
             class="text-decoration-none"
             :class="{'text-background': inverseColor}"
-            :href="`https://www.themoviedb.org/${(result.media_type || this.mediaType)}/${result.id}`"> 
+            :href="`https://www.themoviedb.org/${(result.media_type || mediaType)}/${result.id}`"> 
                 {{ result.name ? result.name : result.title }}
             </a>
         </v-list-item-title>

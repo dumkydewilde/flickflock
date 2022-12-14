@@ -20,7 +20,7 @@ const { mdAndUp } = useDisplay()
       class="pa-3 fill-height" fluid 
       >      
         
-        <v-row justify="start" class="mt-6"> 
+        <v-row justify="start" class="mt-6 fill-height"> 
           <v-col cols="12" lg="4" class="bg-primary mx-0 overflow-y-hidden" id="selection">
             <header class="ml-4 text-white" >
               <h3 class="text-overline">Your favourite movies and actors</h3>
@@ -32,7 +32,7 @@ const { mdAndUp } = useDisplay()
                 inverseColor
                 />
                 <v-alert
-                  v-if="this.selection.length < 2"
+                  v-if="selection.length < 2"
                   
                   variant="tonal"
                   dense
@@ -64,7 +64,7 @@ const { mdAndUp } = useDisplay()
                 />
 
                 <v-alert
-                  v-if="Object.values(flock).length == 0 && !this.flockLoading"
+                  v-if="Object.values(flock).length == 0 && !flockLoading"
                   
                   variant="tonal"
                   
@@ -166,16 +166,12 @@ const { mdAndUp } = useDisplay()
           
       },
       handleAddSearchResult (data) {
-        console.log({...data})
         if (this.selection.map(el => el.id).indexOf(data.id) < 0) {
           this.selection.push(data)
 
           if (this.selection.length == 2) {
-            console.log("adding @ 2")
-            console.log(this.selection)
             this.addToFlock(this.selection)
           } else if (this.selection.length > 2) {
-            console.log("adding @ >2")
             this.addToFlock(this.selection[this.selection.length -1])
           }
         }
@@ -184,14 +180,10 @@ const { mdAndUp } = useDisplay()
       addToFlock (data) {
           this.flockLoading = true
           if ('id' in data) {
-            console.log("id key exists")
-            console.log(data.hasOwnProperty('id'))
             data = [data]
           }
           axios.post(`${this.baseUrl}/${this.flockId}`, {
             "data" : data.map (el => {
-              console.log('current el')
-              console.log(el)
               return {
                 "id" : el.id,
                 "media_type" : el.media_type,
@@ -200,7 +192,6 @@ const { mdAndUp } = useDisplay()
           })
           .then(res => {
             this.flockId = res.data.flock_id
-            console.log(this.flock)
             this.getFlock()
           })
           .catch(err => console.log(err));
