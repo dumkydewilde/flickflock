@@ -4,3 +4,4 @@ requests==2.*
 diskcache==5.*
 google-cloud-firestore==2.7.*
 xxhash==3.1.*
+flask-cors==3.*

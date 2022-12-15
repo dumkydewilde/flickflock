@@ -1,11 +1,14 @@
 import os
 from flask import Flask, request, jsonify
+from flask_cors import CORS, cross_origin
 from flickflock.tmdb import TMDB
 from flickflock.flock import Flock
 
-tmdb = TMDB(api_key=os.environ.get("TMDB_API_KEY"))
-
 app = Flask(__name__)
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
+tmdb = TMDB(api_key=os.environ.get("TMDB_API_KEY"))
 
 @app.route("/api/search", methods=["GET"])
 def search():
