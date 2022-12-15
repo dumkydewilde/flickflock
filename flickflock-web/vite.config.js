@@ -14,10 +14,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-           target: 'https://flickflock-backend-vr3q5dt6va-ew.a.run.app',
+           target: 'https://flickflock-backend-vr3q5dt6va-ew.a.run.app/api',
            changeOrigin: true,
-           secure: false,      
+           secure: false,
            ws: true,
+           rewrite: (path) => path.replace(/^\/api/, "")
        }
     }
   }

@@ -46,6 +46,9 @@ const vuetify = createVuetify({
 })
 
 const app = createApp(App)
+
+app.provide('baseUrlApi', "/api")
+
 app.use(vuetify)
 app.use(router)
 

@@ -43,6 +43,7 @@ import axios from 'axios';
 import _debounce from 'lodash/debounce'
 import MoviesPeopleList from './MoviesPeopleList.vue';
 export default {
+    inject: ["baseUrlApi"],
     name: "Search",
     data() {
         return {
@@ -71,8 +72,7 @@ export default {
     methods: {
         getResults() {
             this.isLoading = true;
-            const baseUrl = "/api/search";
-            axios.get(`${baseUrl}?q=${this.searchQuery}`)
+            axios.get(`${this.baseUrlApi}/search?q=${this.searchQuery}`)
                 .then(res => {
                 this.searchResults = res.data;
                 this.isLoading = false;

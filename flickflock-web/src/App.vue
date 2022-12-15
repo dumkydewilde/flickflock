@@ -126,9 +126,10 @@ const { mdAndUp } = useDisplay()
   import MoviesPeopleList from './components/MoviesPeopleList.vue';
   import _debounce from 'lodash/debounce'
   export default {
+    inject: ["baseUrlApi"],
     data () {
       return {
-        baseUrl: "/api/flock",
+        baseUrl: this.baseUrlApi,
         flock: {},
         flockId: "",
         flockLoading: false,
@@ -182,7 +183,7 @@ const { mdAndUp } = useDisplay()
           if ('id' in data) {
             data = [data]
           }
-          axios.post(`${this.baseUrl}/${this.flockId}`, {
+          axios.post(`${this.baseUrl}/flock/${this.flockId}`, {
             "data" : data.map (el => {
               return {
                 "id" : el.id,
@@ -198,7 +199,7 @@ const { mdAndUp } = useDisplay()
       },
       getFlock () {
           this.flockLoading = true
-          axios.get(`${this.baseUrl}/${this.flockId}/details`)
+          axios.get(`${this.baseUrl}/flock/${this.flockId}/details`)
           .then(res => {
             this.flock = res.data.flock
             this.flockLoading = false
@@ -214,7 +215,7 @@ const { mdAndUp } = useDisplay()
       },
       getFlockWorks () {
           this.flockWorksLoading = true
-          axios.get(`${this.baseUrl}/${this.flockId}/results`)
+          axios.get(`${this.baseUrl}/flock/${this.flockId}/results`)
           .then(res => {
             this.flockWorks = res.data.flock_works
             this.flockWorksLoading = false
