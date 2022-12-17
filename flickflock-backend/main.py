@@ -44,6 +44,7 @@ def flock(flock_id):
     if request.method == "GET" and flock_id:
         return jsonify({
             "flock_id": flock.flock_id,
+            "selection": flock.get_selection(),
             "flock": flock.get_flock(most_common=25)
         })
     
@@ -51,16 +52,18 @@ def flock(flock_id):
         data = request.get_json()
         
         for item in data.get("data", []):
+            flock.update_selection(item)
             if item.get("media_type", None) == "person":
                 # if person, add person and find related persons
                 flock.add_to_flock(item["id"])
-                flock.add_to_flock([p["id"] for p in tmdb.get_person_relations(item["id"])], item["id"])
+                flock.add_to_flock([p["id"] for p in tmdb.get_person_relations(item["id"]) if p["id"] is not item["id"]], item["id"])
             if item.get("media_type", None) and item.get("media_type") != "person":
                 # if work, find people from that work
                 flock.add_to_flock([p["id"] for p in tmdb.get_people_by_media_id(item["id"], item["media_type"])], item["id"])
 
         return jsonify({
                     "flock_id": flock.flock_id,
+                    "selection": flock.get_selection(),
                     "flock": flock.get_flock(most_common=25)
                 })
 
@@ -74,6 +77,7 @@ def flock_details(flock_id):
     if request.method == "GET" and flock_id:
         return jsonify({
             "flock_id": flock.flock_id,
+            "selection": flock.get_selection(),
             "flock": flock.get_flock(details_function=person_details_func, most_common=25)
         })
 
@@ -91,6 +95,7 @@ def flock_results(flock_id):
         
         return jsonify({
             "flock_id": flock.flock_id,
+            "selection": flock.get_selection(),
             "flock_works": sorted(works,key=lambda d: d["count"], reverse=True)[:50]
         })
 

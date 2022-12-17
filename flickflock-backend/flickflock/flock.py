@@ -24,10 +24,12 @@ class Flock:
             self.flock_id = flock_data["flock_id"]
             self.flock_name = flock_data.get("flock_name", "")
             self.flock_entries = flock_data["flock_entries"]
+            self.selection = flock_data.get("selection", [])
         else:
             self.flock_id = str(uuid.uuid4())
             self.flock_name = name
             self.flock_entries = []
+            self.selection = []
         
     def get_from_db(self, key):
         if self.db_type == "local":
@@ -44,8 +46,6 @@ class Flock:
             self.db[key] = value
             return
         else:
-            print(key)
-            print(value)
             self.db.document(key).set(value)
 
     def set_flock_name(self, name):
@@ -53,6 +53,13 @@ class Flock:
 
     def get_flock_id(self):
         return self.flock_id
+
+    def update_selection(self, selection):
+        self.selection.append(selection)
+        return None
+
+    def get_selection(self):
+        return self.selection
 
     def add_to_flock(self, entities, primary_id=""):
         if not isinstance(entities, list):
@@ -77,7 +84,8 @@ class Flock:
             flock_current = {
                 "flock_id" : self.flock_id,
                 "flock_entries" : self.flock_entries,
-                "flock_name" : self.flock_name
+                "flock_name" : self.flock_name,
+                "selection" : self.selection
             }
             self.set_in_db(self.flock_id, {
                 **flock_db,
@@ -95,11 +103,12 @@ class Flock:
         self.order_flock()
         if details_function:
             flock_with_details = {}
-            for id, _ in self.flock.most_common(most_common):
+            for id, count in self.flock.most_common(most_common):
                 flock_with_details[id] = {
-                    "count" : self.flock[id],
+                    "count" : count,
                     **details_function(id)
                 }
+            
             return flock_with_details
         else:
             return dict(self.flock.most_common(most_common))
