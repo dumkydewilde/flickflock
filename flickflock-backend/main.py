@@ -33,8 +33,7 @@ def get_content_details(id, media_type):
 def create_flock():
     return
 
-@app.route("/api/flock", methods=["POST"], defaults={"flock_id" : None}, strict_slashes=False)
-@app.route("/api/flock/<flock_id>", methods=["GET", "POST"])
+@app.route("/api/flock/<flock_id>", methods=["GET", "POST"], defaults={"flock_id" : None}, strict_slashes=False)
 def flock(flock_id):
     if not flock_id:
         flock = Flock()
