@@ -1,12 +1,17 @@
 import os
 from flask import Flask, request, jsonify
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 from flickflock.tmdb import TMDB
 from flickflock.flock import Flock
 
 app = Flask(__name__)
-cors = CORS(app)
-app.config['CORS_HEADERS'] = 'Content-Type'
+origins_list = [
+    "http://localhost:8080",
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "https://flickflock.pages.dev"
+    ]
+cors = CORS(app, origins=origins_list)
 
 tmdb = TMDB(api_key=os.environ.get("TMDB_API_KEY"))
 
@@ -32,22 +37,24 @@ def get_content_details(id, media_type):
 @app.route("/api/flock/create", methods=["POST"])
 def create_flock():
     return
-
-@app.route("/api/flock/<flock_id>", methods=["GET", "POST"], defaults={"flock_id" : None}, strict_slashes=False)
-def flock(flock_id):
-    if not flock_id:
-        flock = Flock()
-    else:
-        flock = Flock(flock_id=flock_id)
-    
-    if request.method == "GET" and flock_id:
-        return jsonify({
-            "flock_id": flock.flock_id,
-            "selection": flock.get_selection(),
-            "flock": flock.get_flock(most_common=25)
-        })
+@app.route("/api/flock", methods=["GET", "POST"], strict_slashes=False)
+@app.route("/api/flock/<flock_id>", methods=["GET", "POST"], strict_slashes=False)
+def flock(flock_id=None):   
+    print(f"Flock ID:  {flock_id}")
+    if request.method == "GET":
+        if flock_id in ["", None, "None"]:
+            return "Invalid Flock ID", 400
+        else:
+            print(f"Flock ID:  {flock_id}")
+            flock = Flock(flock_id=flock_id)
+            return jsonify({
+                "flock_id": flock.flock_id,
+                "selection": flock.get_selection(),
+                "flock": flock.get_flock(most_common=25)
+            }) 
     
     if request.method == "POST":
+        flock = Flock(flock_id=flock_id)
         data = request.get_json()
         
         for item in data.get("data", []):
@@ -65,6 +72,8 @@ def flock(flock_id):
                     "selection": flock.get_selection(),
                     "flock": flock.get_flock(most_common=25)
                 })
+    
+    return f"Unable to handle flock id '{flock_id}'", 400
 
 @app.route("/api/flock/<flock_id>/details", methods=["GET"])
 def flock_details(flock_id):
