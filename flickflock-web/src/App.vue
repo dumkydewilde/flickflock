@@ -61,6 +61,7 @@ const { mdAndUp } = useDisplay()
                 :list-items="Object.values(flock)"
                 mediaType="person"
                 transparent
+                sorted
                 />
 
                 <v-alert
@@ -93,6 +94,7 @@ const { mdAndUp } = useDisplay()
                 :list-items="flockWorks"
                 linkOut
                 transparent
+                sorted
                 />
           </v-col>
         </v-row>
@@ -184,12 +186,7 @@ const { mdAndUp } = useDisplay()
             data = [data]
           }
           axios.post(`${this.baseUrl}/flock/${this.flockId}`, {
-            "data" : data.map (el => {
-              return {
-                "id" : el.id,
-                "media_type" : el.media_type,
-              }
-            })
+            "data" : data
           })
           .then(res => {
             this.flockId = res.data.flock_id
@@ -202,6 +199,8 @@ const { mdAndUp } = useDisplay()
           axios.get(`${this.baseUrl}/flock/${this.flockId}/details`)
           .then(res => {
             this.flock = res.data.flock
+              this.selection = res.data.selection
+
             this.flockLoading = false
             if (!this.flockWorksLoading) {
               this.getFlockWorks()
@@ -218,6 +217,7 @@ const { mdAndUp } = useDisplay()
           axios.get(`${this.baseUrl}/flock/${this.flockId}/results`)
           .then(res => {
             this.flockWorks = res.data.flock_works
+            this.selection = res.data.selection
             this.flockWorksLoading = false
           })
           .catch(err => {

@@ -4,7 +4,7 @@
         :style="{backgroundColor: (transparent ? 'transparent' : null)}"
         >
         <v-list-item 
-        v-for="result in listItems"
+        v-for="result in sorted ? sortedListItems : listItems"
         :key="result.id"
         :value="result"
         @click="result.clicked = !result.clicked"
@@ -16,7 +16,7 @@
                     max-width="100" 
                     cover
                     :src="(result.profile_path || result.poster_path) ? `https://image.tmdb.org/t/p/w200${result.profile_path ? result.profile_path : result.poster_path}` : 'assets/logo.svg'"
-                ></v-img>
+                ></v-img>    
             </v-avatar>
             </template>
             <template v-slot:append>
@@ -37,6 +37,8 @@
             {{ result.known_for_department ? result.known_for_department.toUpperCase() : (result.media_type || mediaType).toUpperCase() }} 
             <v-icon icon="mdi-star" size="16px"></v-icon>
             {{ result.popularity }}
+            <v-icon icon="mdi-counter" size="16px"></v-icon>
+            {{ result.count }}
             </h3>
         </v-list-item-subtitle>
         <v-list-item-title>
@@ -72,11 +74,17 @@ export default {
         addButton: Boolean,
         linkOut: Boolean,
         transparent: Boolean,
-        inverseColor: Boolean
+        inverseColor: Boolean,
+        sorted: Boolean
     },
     data() {
       return {
         flockDialog: false
+      }
+    },
+    computed : {
+        sortedListItems() {
+          return this.listItems.sort((a, b) => { return b.count - a.count;});
       }
     },
     setup() {

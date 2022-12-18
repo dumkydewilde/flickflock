@@ -47,7 +47,7 @@ const vuetify = createVuetify({
 
 const app = createApp(App)
 
-app.provide('baseUrlApi', "/api")
+app.provide('baseUrlApi', "https://flickflock-backend-vr3q5dt6va-ew.a.run.app/api")
 
 app.use(vuetify)
 app.use(router)
