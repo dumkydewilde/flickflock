@@ -205,6 +205,11 @@ const { mdAndUp } = useDisplay()
           .catch(err => console.log(err));
       },
       getFlock () {
+          trackStructEvent({
+              category: 'flock',
+              action: 'getFlockStart',
+              label: `flockId:${this.flockId}`,
+            });
           this.flockLoading = true
           axios.get(`${this.baseUrl}/flock/${this.flockId}/details`)
           .then(res => {
@@ -212,6 +217,11 @@ const { mdAndUp } = useDisplay()
               this.selection = res.data.selection
 
             this.flockLoading = false
+            trackStructEvent({
+              category: 'flock',
+              action: 'getFlockFinishedLoading',
+              label: `flockId:${this.flockId}`,
+            });
             if (!this.flockWorksLoading) {
               this.getFlockWorks()
             }

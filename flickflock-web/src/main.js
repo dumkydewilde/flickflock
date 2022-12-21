@@ -56,11 +56,6 @@ newTracker('icet', trackingEndpoint, {
     postPath: "/ice/t",
     plugins: [ ],
   })
-  
-enableActivityTracking({
-    minimumVisitLength: 30,
-    heartbeatDelay: 10
-});
 
 const app = createApp(App)
 
