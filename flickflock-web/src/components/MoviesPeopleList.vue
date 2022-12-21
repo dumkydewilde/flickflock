@@ -37,7 +37,7 @@
             {{ result.known_for_department ? result.known_for_department.toUpperCase() : (result.media_type || mediaType).toUpperCase() }} 
             <v-icon icon="mdi-star" size="16px"></v-icon>
             {{ result.popularity }}
-            <v-icon icon="mdi-counter" size="16px"></v-icon>
+            <v-icon icon="mdi-counter" size="16px" v-if="result.count > 0"></v-icon>
             {{ result.count }}
             </h3>
         </v-list-item-subtitle>

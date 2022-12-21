@@ -41,6 +41,7 @@
 <script>
 import axios from 'axios';
 import _debounce from 'lodash/debounce'
+import { trackStructEvent } from '@snowplow/browser-tracker'
 import MoviesPeopleList from './MoviesPeopleList.vue';
 export default {
     inject: ["baseUrlApi"],
@@ -76,6 +77,12 @@ export default {
                 .then(res => {
                 this.searchResults = res.data;
                 this.isLoading = false;
+                trackStructEvent({
+                  category: 'search',
+                  action: 'getResults',
+                  label: `numResults:${res.data.length}`,
+                  property: `${this.searchQuery}`
+                });
             })
                 .catch(err => {
                 console.log(err);
@@ -85,6 +92,13 @@ export default {
         handleAddListItem(data) {
           this.$emit('addSearchResult', data)
           this.isVisible = false
+          trackStructEvent({
+            category: 'search',
+            action: 'addResult',
+            label: `${this.searchQuery}`,
+            property: `${data.media_type}:${data.id}`
+            
+          });
         }
     },
     components: { MoviesPeopleList }

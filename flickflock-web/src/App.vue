@@ -2,9 +2,10 @@
 import { onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute} from 'vue-router'
 import { useDisplay } from 'vuetify'
+import { trackStructEvent, enableActivityTracking } from '@snowplow/browser-tracker'
 
 const { mdAndUp } = useDisplay()
-  
+
 </script>
 
 <template>
@@ -127,8 +128,9 @@ const { mdAndUp } = useDisplay()
   import Search from './components/Search.vue'
   import MoviesPeopleList from './components/MoviesPeopleList.vue';
   import _debounce from 'lodash/debounce'
+
   export default {
-    inject: ["baseUrlApi"],
+    inject: ["baseUrlApi", "trackerEndpoint"],
     data () {
       return {
         baseUrl: this.baseUrlApi,
@@ -185,12 +187,20 @@ const { mdAndUp } = useDisplay()
           if ('id' in data) {
             data = [data]
           }
+
           axios.post(`${this.baseUrl}/flock/${this.flockId}`, {
             "data" : data
           })
           .then(res => {
             this.flockId = res.data.flock_id
             this.getFlock()
+
+            trackStructEvent({
+              category: 'flock',
+              action: 'addToFlock',
+              label: `flockId:${this.flockId}`,
+              property: `${data.media_type}:${data.id}`
+            });
           })
           .catch(err => console.log(err));
       },
@@ -219,6 +229,12 @@ const { mdAndUp } = useDisplay()
             this.flockWorks = res.data.flock_works
             this.selection = res.data.selection
             this.flockWorksLoading = false
+            trackStructEvent({
+              category: 'flock',
+              action: 'flockResultsLoaded',
+              label: `flockId:${this.flockId}`,
+              property: `selectionLength:${this.selection.length};flockLength:${Object.keys(this.flock).length};resultLength:${this.flockWorks.length}`
+            });
           })
           .catch(err => {
             console.log(err)
@@ -235,6 +251,13 @@ const { mdAndUp } = useDisplay()
       } else {
         this.flockId = ""
       }
+
+      enableActivityTracking({
+        minimumVisitLength: 30,
+        heartbeatDelay: 10
+    });
+
+      
     },
     components: {
       Search,

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { trackPageView, trackSelfDescribingEvent } from "@snowplow/browser-tracker"
 import HomeView from '../views/HomeView.vue'
 
 const router = createRouter({
@@ -58,6 +59,10 @@ router.beforeEach((to, from, next) => {
 
   next();
 });
+
+router.afterEach((to, from) => {
+  trackPageView()
+})
 
 
 export default router

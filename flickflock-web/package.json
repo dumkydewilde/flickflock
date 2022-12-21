@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@snowplow/browser-tracker": "^3.7.0",
     "axios": "^1.2.0",
     "lodash": "^4.17.21",
     "vue": "^3.2.45",

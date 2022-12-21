@@ -11,6 +11,8 @@ import colors from 'vuetify/lib/util/colors'
 import { aliases, mdi } from 'vuetify/iconsets/mdi'
 import { md3 } from 'vuetify/blueprints'
 
+import { newTracker, enableActivityTracking } from "@snowplow/browser-tracker"
+
 // import './assets/main.css'
 
 const customDarkTheme = {
@@ -45,9 +47,25 @@ const vuetify = createVuetify({
     directives,
 })
 
+const trackingEndpoint = "https://snowplow-collector-vr3q5dt6va-ew.a.run.app"
+
+newTracker('icet', trackingEndpoint, { 
+    appId: 'flickflock-web', 
+    discoverRootDomain: true,
+    cookieSameSite: 'Lax', // Recommended
+    postPath: "/ice/t",
+    plugins: [ ],
+  })
+  
+enableActivityTracking({
+    minimumVisitLength: 30,
+    heartbeatDelay: 10
+});
+
 const app = createApp(App)
 
 app.provide('baseUrlApi', "https://flickflock-backend-vr3q5dt6va-ew.a.run.app/api")
+app.provide('trackingEndpoint', trackingEndpoint)
 
 app.use(vuetify)
 app.use(router)
