@@ -100,16 +100,32 @@ Apply inverse-document-frequency logic:
 - People with fewer total credits who still appear in multiple selections are *more*
   meaningful signals
 
-### 2.3 Smarter person-relation expansion
+### 2.3 Two-tier person expansion (direct vs. transitive)
 
 Currently `get_person_relations` fetches the full cast/crew of every project a person has
 been in. For someone like Andy Samberg (100+ credits), that's 100+ API calls returning
-thousands of people.
+thousands of people. The fix isn't to blindly limit — it depends on *how* the person entered
+the flock.
 
-Instead:
-- Limit to top N most popular/relevant works (e.g., top 10 by TMDB popularity)
-- Only include cast with `cast_order < 15` and key crew departments
-- Cache aggressively (these results are stable)
+**Direct selections (user explicitly adds a person like "Andy Samberg"):**
+- Fetch their **full filmography** — this is the point. The user *wants* to discover the
+  long tail: the indie film, the voice role, the one-off directing credit.
+- All of their works feed into the results, including obscure ones. This is where FlickFlock
+  surfaces hidden gems.
+- However, when expanding *outward* from those works (finding collaborators), apply the
+  filtered approach below — we want Andy's deep cuts, but we don't need every grip from
+  every one of his 100 projects.
+
+**Transitive connections (people discovered via a selected movie/show):**
+- These are indirect — the user didn't ask for them specifically.
+- Limit expansion to top N most popular/relevant works (e.g., top 10 by TMDB popularity).
+- Only include cast with `cast_order < 15` and key crew departments (Directing, Writing,
+  Production, Sound/composer).
+- Cache aggressively (these results are stable).
+
+This means: "I like Andy Samberg" → you see *everything* Andy has done, including the weird
+stuff → but the flock of *collaborators* is built smartly from his key projects, not by
+crawling every person on every set he ever walked onto.
 
 ### 2.4 Normalize per-selection contribution
 
@@ -127,6 +143,12 @@ double-amplifies popular people. Instead:
 - Score each work based on *how many distinct flock members* worked on it (not weighted by
   flock count — that's already baked into which people are in the flock)
 - Boost works where multiple *top flock members* collaborated (the "reunion" signal)
+- **Long-tail surfacing for direct selections**: When someone is directly selected, their
+  full filmography enters the results pool. A niche Andy Samberg indie film might only have
+  1 flock member (Andy himself), but it should still appear because the user explicitly
+  expressed interest in Andy. Give directly-selected people a baseline "trust" score so
+  their obscure works aren't drowned out by blockbusters that happen to have 10 flock
+  members.
 - Penalize works the user has already selected (they already know about these)
 - Optionally filter by genre affinity derived from the user's selections
 
