@@ -1,7 +1,48 @@
-import uuid, itertools, time
-from collections import Counter
-from diskcache import Cache 
-from google.cloud import firestore
+import uuid, itertools, time, math
+from collections import Counter, defaultdict
+from diskcache import Cache
+
+# Department weights: how much creative influence does this role have
+DEPARTMENT_WEIGHTS = {
+    "Directing": 5.0,
+    "Writing": 4.0,
+    "Acting": 3.0,
+    "Production": 2.0,
+    "Sound": 1.5,
+    "Camera": 1.0,
+    "Editing": 1.0,
+    "Art": 0.5,
+    "Crew": 0.3,
+}
+DEFAULT_DEPARTMENT_WEIGHT = 0.5
+
+
+def cast_order_weight(order):
+    """Lead actors matter more than background cast."""
+    if order is None:
+        return 0.5
+    if order <= 2:
+        return 1.0
+    elif order <= 5:
+        return 0.8
+    elif order <= 10:
+        return 0.5
+    elif order <= 20:
+        return 0.3
+    else:
+        return 0.1
+
+
+def compute_entity_weight(entity):
+    """Compute importance weight for a person based on their role."""
+    department = entity.get("department", entity.get("known_for_department", ""))
+    base_weight = DEPARTMENT_WEIGHTS.get(department, DEFAULT_DEPARTMENT_WEIGHT)
+
+    if department == "Acting" or "order" in entity:
+        base_weight *= cast_order_weight(entity.get("order"))
+
+    return base_weight
+
 
 class Flock:
     def __init__(self, name=None, flock_id=None, db_type="cloud"):
@@ -9,28 +50,30 @@ class Flock:
             self.db_type = "local"
             self.db = Cache('.flock', statistics=True)
         else:
+            from google.cloud import firestore
             self.db_type = "cloud"
             self.db = firestore.Client().collection('flock')
 
-        
-        self.flock = Counter()
-        
+        self.flock = {}
+        self.direct_person_ids = set()
+
         if flock_id:
             flock_data = self.get_from_db(flock_id)
         else:
             flock_data = None
-            
+
         if flock_data:
             self.flock_id = flock_data["flock_id"]
             self.flock_name = flock_data.get("flock_name", "")
             self.flock_entries = flock_data["flock_entries"]
             self.selection = flock_data.get("selection", [])
+            self.direct_person_ids = set(flock_data.get("direct_person_ids", []))
         else:
             self.flock_id = str(uuid.uuid4())
             self.flock_name = name
             self.flock_entries = []
             self.selection = []
-        
+
     def get_from_db(self, key):
         if self.db_type == "local":
             return self.db.get(key, {})
@@ -38,13 +81,12 @@ class Flock:
             doc = self.db.document(key).get()
             if doc.exists:
                 return doc.to_dict()
-            else: 
+            else:
                 return {}
 
     def set_in_db(self, key, value):
         if self.db_type == "local":
             self.db[key] = value
-            return
         else:
             self.db.document(key).set(value)
 
@@ -56,24 +98,54 @@ class Flock:
 
     def update_selection(self, selection):
         self.selection.append(selection)
-        return None
 
     def get_selection(self):
         return self.selection
 
-    def add_to_flock(self, entities, primary_id=""):
+    def remove_selection(self, selection_id):
+        self.selection = [s for s in self.selection if s.get("id") != selection_id]
+        self.flock_entries = [
+            e for e in self.flock_entries if e.get("primary_id") != selection_id
+        ]
+        self.direct_person_ids.discard(selection_id)
+
+    def add_to_flock(self, entities, primary_id="", source_type="movie"):
+        """Add entities to the flock.
+
+        entities: list of dicts with 'id' and optionally 'department', 'order',
+                  'known_for_department' — OR list of plain IDs (backward compat)
+        primary_id: the selection that led to this entry
+        source_type: "movie", "tv", "person_direct", "person_transitive"
+        """
         if not isinstance(entities, list):
             entities = [entities]
-            if primary_id == "":
-                primary_id = entities
+
+        # Normalize to weighted entity dicts
+        weighted = []
+        for e in entities:
+            if isinstance(e, dict):
+                weighted.append({
+                    "id": e["id"],
+                    "weight": compute_entity_weight(e),
+                    "department": e.get("department", e.get("known_for_department", "")),
+                })
+            else:
+                weighted.append({
+                    "id": e,
+                    "weight": DEFAULT_DEPARTMENT_WEIGHT,
+                    "department": "",
+                })
+
+        if source_type == "person_direct":
+            for e in weighted:
+                self.direct_person_ids.add(e["id"])
 
         self.flock_entries.append({
-            "entities" : entities,
-            "timestamp" : time.time(),
-            "primary_id" : primary_id
-            })
-
-        return None
+            "entities": weighted,
+            "timestamp": time.time(),
+            "primary_id": primary_id,
+            "source_type": source_type,
+        })
 
     def remove_from_flock(self, index):
         self.flock_entries.pop(index)
@@ -82,42 +154,109 @@ class Flock:
         if self.flock_id:
             flock_db = self.get_from_db(self.flock_id)
             flock_current = {
-                "flock_id" : self.flock_id,
-                "flock_entries" : self.flock_entries,
-                "flock_name" : self.flock_name,
-                "selection" : self.selection
+                "flock_id": self.flock_id,
+                "flock_entries": self.flock_entries,
+                "flock_name": self.flock_name,
+                "selection": self.selection,
+                "direct_person_ids": list(self.direct_person_ids),
             }
             self.set_in_db(self.flock_id, {
                 **flock_db,
-                **flock_current
+                **flock_current,
             })
 
-    def order_flock(self):
-        """Order flock from history"""
+    def score_flock(self):
+        """Score flock members using weighted, normalized scoring with TF-IDF."""
         self.sync_flock()
-        self.flock = Counter(list(itertools.chain(*[e["entities"] for e in self.flock_entries])))
+
+        person_scores = defaultdict(float)
+        person_entry_count = defaultdict(int)
+
+        for entry in self.flock_entries:
+            entities = entry.get("entities", [])
+
+            # Backward compat: old entries stored plain ID lists
+            if entities and not isinstance(entities[0], dict):
+                entities = [{"id": e, "weight": DEFAULT_DEPARTMENT_WEIGHT} for e in entities]
+
+            # Normalize: each selection contributes a budget of 1.0
+            total_weight = sum(e.get("weight", DEFAULT_DEPARTMENT_WEIGHT) for e in entities)
+            if total_weight == 0:
+                continue
+
+            for e in entities:
+                person_id = e["id"] if isinstance(e, dict) else e
+                raw_weight = e.get("weight", DEFAULT_DEPARTMENT_WEIGHT)
+                normalized = raw_weight / total_weight
+                person_scores[person_id] += normalized
+                person_entry_count[person_id] += 1
+
+        # TF-IDF: penalize people who appear in everything
+        num_entries = max(len(self.flock_entries), 1)
+        for person_id in list(person_scores.keys()):
+            tf = person_entry_count[person_id] / num_entries
+            idf = math.log(1 + num_entries / person_entry_count[person_id])
+            person_scores[person_id] *= (tf * idf)
+
+        self.flock = dict(
+            sorted(person_scores.items(), key=lambda x: x[1], reverse=True)
+        )
         return self.flock
 
     def get_flock(self, details_function=None, most_common=None):
-        """Retrieve flock and occurences with optional details"""
-        self.order_flock()
+        """Retrieve flock and scores with optional details."""
+        self.score_flock()
+
+        items = list(self.flock.items())
+        if most_common:
+            items = items[:most_common]
+
         if details_function:
             flock_with_details = {}
-            for id, count in self.flock.most_common(most_common):
-                flock_with_details[id] = {
-                    "count" : count,
-                    **details_function(id)
+            for person_id, score in items:
+                flock_with_details[person_id] = {
+                    "count": round(score, 4),
+                    **details_function(person_id),
                 }
-            
             return flock_with_details
         else:
-            return dict(self.flock.most_common(most_common))
+            return {pid: round(score, 4) for pid, score in items}
 
     def get_flock_works(self, get_works_function, unique_work_key="id", most_common=None):
-        works = list(itertools.chain(*[get_works_function(id)*count for id, count in self.get_flock(most_common=most_common).items()]))
-        works_count = Counter([w[unique_work_key] for w in works])
+        """Score works by distinct flock member collaboration with direct-selection boost."""
+        flock_scores = self.get_flock(most_common=most_common)
 
-        return  {w[unique_work_key]: {
-            **{"count": works_count[w[unique_work_key]]},
-            **w
-            } for w in works}.values()
+        works_by_id = {}
+        works_members = defaultdict(set)
+        works_direct_boost = defaultdict(float)
+
+        selected_work_ids = set()
+        for sel in self.selection:
+            if sel.get("media_type") != "person":
+                selected_work_ids.add(sel.get("id"))
+
+        for person_id, score in flock_scores.items():
+            works = get_works_function(person_id)
+            for w in works:
+                wid = w[unique_work_key]
+                if wid not in works_by_id:
+                    works_by_id[wid] = w
+                works_members[wid].add(person_id)
+
+                if person_id in self.direct_person_ids:
+                    works_direct_boost[wid] += 0.5
+
+        results = []
+        for wid, work_data in works_by_id.items():
+            member_count = len(works_members[wid])
+            direct_boost = works_direct_boost.get(wid, 0)
+            penalty = 0.1 if wid in selected_work_ids else 1.0
+
+            score = (member_count + direct_boost) * penalty
+
+            results.append({
+                "count": round(score, 2),
+                **work_data,
+            })
+
+        return sorted(results, key=lambda x: x["count"], reverse=True)

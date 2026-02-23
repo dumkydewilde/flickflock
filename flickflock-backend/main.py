@@ -53,22 +53,42 @@ def flock(flock_id=None):
     if request.method == "POST":
         flock = Flock(flock_id=flock_id)
         data = request.get_json()
-        
+
         for item in data.get("data", []):
             flock.update_selection(item)
-            if item.get("media_type", None) == "person":
-                # if person, add person and find related persons
-                flock.add_to_flock(item["id"])
-                flock.add_to_flock([p["id"] for p in tmdb.get_person_relations(item["id"]) if p["id"] != item["id"]], item["id"])
-            if item.get("media_type", None) and item.get("media_type") != "person":
-                # if work, find people from that work
-                flock.add_to_flock([p["id"] for p in tmdb.get_people_by_media_id(item["id"], item["media_type"])], item["id"])
+            media_type = item.get("media_type")
+
+            if media_type == "person":
+                # Direct selection: add the person with high weight
+                person = tmdb.get_person_by_id(item["id"])
+                flock.add_to_flock(
+                    [{"id": item["id"],
+                      "department": person.get("known_for_department", "Acting"),
+                      "order": 0}],
+                    primary_id=item["id"],
+                    source_type="person_direct",
+                )
+                # Transitive: collaborators from their top works (filtered)
+                relations = tmdb.get_person_relations_filtered(item["id"])
+                flock.add_to_flock(
+                    [p for p in relations if p.get("id") != item["id"]],
+                    primary_id=item["id"],
+                    source_type="person_transitive",
+                )
+            elif media_type:
+                # Work selection: add all cast/crew with role metadata
+                people = tmdb.get_people_by_media_id(item["id"], media_type)
+                flock.add_to_flock(
+                    people,
+                    primary_id=item["id"],
+                    source_type=media_type,
+                )
 
         return jsonify({
-                    "flock_id": flock.flock_id,
-                    "selection": flock.get_selection(),
-                    "flock": flock.get_flock(most_common=25)
-                })
+            "flock_id": flock.flock_id,
+            "selection": flock.get_selection(),
+            "flock": flock.get_flock(most_common=25),
+        })
     
     return f"Unable to handle flock id '{flock_id}'", 400
 
@@ -87,18 +107,36 @@ def flock_details(flock_id):
 @app.route("/api/flock/<flock_id>/results", methods=["GET"])
 def flock_results(flock_id):
     if not flock_id:
-        return None
-    else:
-        flock = Flock(flock_id=flock_id)
-    
-    if request.method == "GET" and flock.flock_id:
-        works = list(flock.get_flock_works(tmdb_movies_from_person, most_common=10))
-        
-        return jsonify({
-            "flock_id": flock.flock_id,
-            "selection": flock.get_selection(),
-            "flock_works": sorted(works,key=lambda d: d["count"], reverse=True)[:50]
-        })
+        return "Invalid Flock ID", 400
+
+    flock = Flock(flock_id=flock_id)
+    works = flock.get_flock_works(tmdb_movies_from_person, most_common=10)
+
+    return jsonify({
+        "flock_id": flock.flock_id,
+        "selection": flock.get_selection(),
+        "flock_works": works[:50],
+    })
+
+@app.route("/api/flock/<flock_id>/remove", methods=["POST"])
+def flock_remove(flock_id):
+    if not flock_id:
+        return "Invalid Flock ID", 400
+
+    data = request.get_json()
+    selection_id = data.get("selection_id")
+    if not selection_id:
+        return "Missing selection_id", 400
+
+    flock = Flock(flock_id=flock_id)
+    flock.remove_selection(selection_id)
+    flock.sync_flock()
+
+    return jsonify({
+        "flock_id": flock.flock_id,
+        "selection": flock.get_selection(),
+        "flock": flock.get_flock(most_common=25),
+    })
 
             
 
