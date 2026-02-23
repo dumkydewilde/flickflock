@@ -34,14 +34,13 @@ class TMDB:
             return False
 
     def set_cached_request(self, request_id, data):
-        self.cache.set[request_id] = {
+        self.cache.set(request_id, {
             "date": str(date.today()),
             "data": data
-        }
+        }, expire=7 * 24 * 3600)  # 7-day TTL
 
     def authenticate(self):
         if self.api_key:
-            print(self.api_key)
             self.is_authenticated = True
             return
         elif self.api_key_name in os.environ:

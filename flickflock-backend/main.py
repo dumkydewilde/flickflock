@@ -34,9 +34,6 @@ def get_content_details(id, media_type):
     else:
         return "Invalid request", 400
 
-@app.route("/api/flock/create", methods=["POST"])
-def create_flock():
-    return
 @app.route("/api/flock", methods=["GET", "POST"], strict_slashes=False)
 @app.route("/api/flock/<flock_id>", methods=["GET", "POST"], strict_slashes=False)
 def flock(flock_id=None):   
@@ -62,7 +59,7 @@ def flock(flock_id=None):
             if item.get("media_type", None) == "person":
                 # if person, add person and find related persons
                 flock.add_to_flock(item["id"])
-                flock.add_to_flock([p["id"] for p in tmdb.get_person_relations(item["id"]) if p["id"] is not item["id"]], item["id"])
+                flock.add_to_flock([p["id"] for p in tmdb.get_person_relations(item["id"]) if p["id"] != item["id"]], item["id"])
             if item.get("media_type", None) and item.get("media_type") != "person":
                 # if work, find people from that work
                 flock.add_to_flock([p["id"] for p in tmdb.get_people_by_media_id(item["id"], item["media_type"])], item["id"])
@@ -78,18 +75,14 @@ def flock(flock_id=None):
 @app.route("/api/flock/<flock_id>/details", methods=["GET"])
 def flock_details(flock_id):
     if not flock_id:
-        flock = Flock(flock_id=flock_id)
-    else:
-        flock = Flock(flock_id=flock_id)
-    
-    if request.method == "GET" and flock_id:
-        return jsonify({
-            "flock_id": flock.flock_id,
-            "selection": flock.get_selection(),
-            "flock": flock.get_flock(details_function=person_details_func, most_common=25)
-        })
+        return "Invalid Flock ID", 400
 
-
+    flock = Flock(flock_id=flock_id)
+    return jsonify({
+        "flock_id": flock.flock_id,
+        "selection": flock.get_selection(),
+        "flock": flock.get_flock(details_function=person_details_func, most_common=25)
+    })
 
 @app.route("/api/flock/<flock_id>/results", methods=["GET"])
 def flock_results(flock_id):

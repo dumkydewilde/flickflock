@@ -51,4 +51,4 @@ def test_flock():
 def test_set_flock_name():
     flock = Flock()
     flock.set_flock_name("test_flock")
-    assert flock.name == "test_flock"
+    assert flock.flock_name == "test_flock"
