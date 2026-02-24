@@ -14,6 +14,7 @@ origins_list = [
     "http://localhost:5173",
     "http://localhost:4173",
     "https://flickflock.pages.dev",
+    r"https://.*\.flickflock\.pages\.dev",
 ]
 cors = CORS(app, origins=origins_list)
 

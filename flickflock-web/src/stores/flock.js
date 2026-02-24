@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import axios from 'axios'
 import { trackStructEvent } from '@snowplow/browser-tracker'
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://flickflock-backend-vr3q5dt6va-ew.a.run.app/api'
+const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 export const useFlockStore = defineStore('flock', () => {
   const flockId = ref('')
