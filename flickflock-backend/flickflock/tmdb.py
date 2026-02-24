@@ -34,14 +34,13 @@ class TMDB:
             return False
 
     def set_cached_request(self, request_id, data):
-        self.cache.set[request_id] = {
+        self.cache.set(request_id, {
             "date": str(date.today()),
             "data": data
-        }
+        }, expire=7 * 24 * 3600)  # 7-day TTL
 
     def authenticate(self):
         if self.api_key:
-            print(self.api_key)
             self.is_authenticated = True
             return
         elif self.api_key_name in os.environ:
@@ -102,13 +101,50 @@ class TMDB:
             **person_credits
             }
 
+    # Departments worth including in filtered/transitive expansion
+    KEY_CREW_DEPARTMENTS = {"Directing", "Writing", "Production", "Sound"}
+
+    def get_people_by_media_id_filtered(self, id, media_type, max_cast=15):
+        """Get filtered people from a work: top-billed cast + key crew only."""
+        credits = self.get_credits(media_type, id)
+        cast = credits.get("cast", [])[:max_cast]
+        crew = [c for c in credits.get("crew", [])
+                if c.get("department") in self.KEY_CREW_DEPARTMENTS]
+        return [*cast, *crew]
+
     def get_person_relations(self, person_id):
+        """Original unfiltered expansion (kept for backward compat)."""
         relations = []
         works = self.get_person_by_id(person_id)
-        for work in [*works.get("cast",[]), *works.get("crew",[])]:
+        for work in [*works.get("cast", []), *works.get("crew", [])]:
             relations.extend(self.get_people_by_media_id(
-                work["id"], 
+                work["id"],
                 work["media_type"]
-                ))
+            ))
+        return relations
 
+    def get_person_relations_filtered(self, person_id, max_works=10, max_cast_per_work=15):
+        """Get collaborators from a person's top works only (filtered expansion).
+
+        Used for transitive connections: limits to top N works by popularity,
+        and only top-billed cast + key crew per work.
+        """
+        person = self.get_person_by_id(person_id)
+        all_works = [*person.get("cast", []), *person.get("crew", [])]
+
+        # Deduplicate and take top N by popularity
+        seen = set()
+        top_works = []
+        for w in sorted(all_works, key=lambda w: w.get("popularity", 0), reverse=True):
+            if w["id"] not in seen:
+                seen.add(w["id"])
+                top_works.append(w)
+            if len(top_works) >= max_works:
+                break
+
+        relations = []
+        for work in top_works:
+            relations.extend(self.get_people_by_media_id_filtered(
+                work["id"], work["media_type"], max_cast=max_cast_per_work
+            ))
         return relations

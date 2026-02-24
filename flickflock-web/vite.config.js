@@ -14,18 +14,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-           target: 'http://127.0.0.1:8080',
-           changeOrigin: true,
-           secure: false,
-           ws: true
-       },
-       "https://flickflock-backend-vr3q5dt6va-ew.a.run.app/api": {
-          target: 'http://127.0.0.1:8080/api',
-           changeOrigin: true,
-           secure: false,
-           ws: true,
-           rewrite: (path) => path.replace(/^\/api/, "")
-       }
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+        secure: false,
+      },
     }
   }
 })
