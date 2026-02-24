@@ -1,6 +1,9 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+import axios from 'axios'
 import { useFlockStore } from '../stores/flock'
+
+const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 const store = useFlockStore()
 
@@ -10,21 +13,67 @@ const members = computed(() => {
     .sort((a, b) => b.count - a.count)
 })
 
-function tmdbImage(member) {
+// Modal state
+const showModal = ref(false)
+const modalLoading = ref(false)
+const personDetail = ref(null)
+const selectedMember = ref(null)
+
+function tmdbImage(member, size = 'w92') {
   return member.profile_path
-    ? `https://image.tmdb.org/t/p/w92${member.profile_path}`
+    ? `https://image.tmdb.org/t/p/${size}${member.profile_path}`
     : null
 }
 
-function addAsPerson(member) {
-  store.addSearchResult({
-    id: member.id,
-    name: member.name,
-    media_type: 'person',
-    profile_path: member.profile_path,
-    known_for_department: member.known_for_department,
-  })
+async function openPersonModal(member) {
+  selectedMember.value = member
+  personDetail.value = null
+  showModal.value = true
+  modalLoading.value = true
+
+  try {
+    const res = await axios.get(`${BASE_URL}/person/${member.id}`)
+    personDetail.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch person details:', err)
+  } finally {
+    modalLoading.value = false
+  }
 }
+
+function addAndClose() {
+  if (!selectedMember.value) return
+  store.addSearchResult({
+    id: selectedMember.value.id,
+    name: selectedMember.value.name,
+    media_type: 'person',
+    profile_path: selectedMember.value.profile_path,
+    known_for_department: selectedMember.value.known_for_department,
+  })
+  showModal.value = false
+}
+
+const knownFor = computed(() => {
+  if (!personDetail.value) return []
+  const cast = personDetail.value.cast || []
+  const crew = personDetail.value.crew || []
+  const all = [...cast, ...crew]
+  // Deduplicate by id and take top 6 by popularity
+  const seen = new Set()
+  return all
+    .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+    .filter(w => {
+      if (seen.has(w.id)) return false
+      seen.add(w.id)
+      return true
+    })
+    .slice(0, 6)
+})
+
+const isAlreadySelected = computed(() => {
+  if (!selectedMember.value) return false
+  return store.selection.some(s => s.id === selectedMember.value.id)
+})
 </script>
 
 <template>
@@ -41,7 +90,7 @@ function addAsPerson(member) {
         v-for="member in members"
         :key="member.id"
         class="member-card"
-        @click="addAsPerson(member)"
+        @click="openPersonModal(member)"
       >
         <v-avatar :size="56" class="mb-1" color="background">
           <v-img v-if="tmdbImage(member)" :src="tmdbImage(member)" cover />
@@ -51,11 +100,94 @@ function addAsPerson(member) {
         <v-chip size="x-small" variant="tonal" color="info" class="mt-1">
           {{ member.known_for_department || 'Crew' }}
         </v-chip>
-        <v-tooltip activator="parent" location="bottom">
-          Click to add {{ member.name }} to your selection
-        </v-tooltip>
       </div>
     </div>
+
+    <!-- Person detail modal -->
+    <v-dialog v-model="showModal" max-width="480" scrollable>
+      <v-card color="surface">
+        <v-card-title class="d-flex align-center pa-4">
+          <span class="text-h6">{{ selectedMember?.name }}</span>
+          <v-spacer />
+          <v-btn icon="mdi-close" variant="text" size="small" @click="showModal = false" />
+        </v-card-title>
+
+        <v-card-text class="pa-4 pt-0">
+          <div v-if="modalLoading" class="text-center py-8">
+            <v-progress-circular color="primary" indeterminate />
+          </div>
+
+          <template v-else-if="personDetail">
+            <div class="d-flex ga-4 mb-4">
+              <v-avatar :size="100" rounded="lg" color="background">
+                <v-img v-if="tmdbImage(selectedMember, 'w185')" :src="tmdbImage(selectedMember, 'w185')" cover />
+                <v-icon v-else icon="mdi-account" size="48" />
+              </v-avatar>
+              <div>
+                <v-chip size="small" variant="tonal" color="info" class="mb-2">
+                  {{ personDetail.known_for_department || 'Crew' }}
+                </v-chip>
+                <div v-if="personDetail.birthday" class="text-caption text-medium-emphasis">
+                  Born {{ personDetail.birthday }}
+                </div>
+                <div v-if="personDetail.place_of_birth" class="text-caption text-medium-emphasis">
+                  {{ personDetail.place_of_birth }}
+                </div>
+              </div>
+            </div>
+
+            <p v-if="personDetail.biography" class="text-body-2 mb-4 biography">
+              {{ personDetail.biography.slice(0, 300) }}{{ personDetail.biography.length > 300 ? '...' : '' }}
+            </p>
+
+            <div v-if="knownFor.length" class="mb-2">
+              <p class="text-overline text-medium-emphasis mb-2">Known for</p>
+              <div class="known-for-grid">
+                <div v-for="work in knownFor" :key="work.id" class="known-for-item">
+                  <v-img
+                    v-if="work.poster_path"
+                    :src="`https://image.tmdb.org/t/p/w92${work.poster_path}`"
+                    :aspect-ratio="2/3"
+                    cover
+                    class="rounded"
+                    width="60"
+                  />
+                  <div v-else class="poster-placeholder-sm rounded d-flex align-center justify-center">
+                    <v-icon icon="mdi-movie-outline" size="20" />
+                  </div>
+                  <span class="text-caption known-for-title">{{ work.title || work.name }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </v-card-text>
+
+        <v-card-actions class="pa-4 pt-0">
+          <v-btn
+            variant="text"
+            :href="`https://www.themoviedb.org/person/${selectedMember?.id}`"
+            target="_blank"
+            size="small"
+          >
+            TMDB
+            <v-icon end icon="mdi-open-in-new" size="14" />
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            v-if="!isAlreadySelected"
+            variant="flat"
+            color="primary"
+            prepend-icon="mdi-plus"
+            @click="addAndClose"
+          >
+            Add to selection
+          </v-btn>
+          <v-chip v-else variant="tonal" color="info" prepend-icon="mdi-check">
+            Already selected
+          </v-chip>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -88,5 +220,39 @@ function addAsPerson(member) {
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.2;
+}
+
+.biography {
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.known-for-grid {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.known-for-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 64px;
+  flex-shrink: 0;
+}
+
+.known-for-title {
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.poster-placeholder-sm {
+  width: 60px;
+  aspect-ratio: 2 / 3;
+  background: rgba(21, 16, 24, 0.8);
 }
 </style>
