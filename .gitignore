@@ -1,5 +1,9 @@
 .requests
 .flock
+data/
+*.db
+*.db-wal
+*.db-shm
 tmp/
 
 .envrc

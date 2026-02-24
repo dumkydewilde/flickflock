@@ -1,6 +1,5 @@
-import uuid, itertools, time, math
+import uuid, itertools, time, math, json, sqlite3, os
 from collections import Counter, defaultdict
-from diskcache import Cache
 
 # Department weights: how much creative influence does this role have
 DEPARTMENT_WEIGHTS = {
@@ -15,6 +14,25 @@ DEPARTMENT_WEIGHTS = {
     "Crew": 0.3,
 }
 DEFAULT_DEPARTMENT_WEIGHT = 0.5
+
+_DB_PATH = os.environ.get("FLOCK_DB_PATH", os.path.join(os.path.dirname(__file__), "..", "data", "flock.db"))
+
+
+def _get_db():
+    db_dir = os.path.dirname(_DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+    conn = sqlite3.connect(_DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS flocks (
+            flock_id TEXT PRIMARY KEY,
+            data TEXT NOT NULL,
+            updated_at REAL NOT NULL
+        )
+    """)
+    conn.commit()
+    return conn
 
 
 def cast_order_weight(order):
@@ -45,20 +63,12 @@ def compute_entity_weight(entity):
 
 
 class Flock:
-    def __init__(self, name=None, flock_id=None, db_type="cloud"):
-        if db_type == "local":
-            self.db_type = "local"
-            self.db = Cache('.flock', statistics=True)
-        else:
-            from google.cloud import firestore
-            self.db_type = "cloud"
-            self.db = firestore.Client().collection('flock')
-
+    def __init__(self, name=None, flock_id=None, db_type=None):
         self.flock = {}
         self.direct_person_ids = set()
 
         if flock_id:
-            flock_data = self.get_from_db(flock_id)
+            flock_data = self._get_from_db(flock_id)
         else:
             flock_data = None
 
@@ -74,21 +84,24 @@ class Flock:
             self.flock_entries = []
             self.selection = []
 
-    def get_from_db(self, key):
-        if self.db_type == "local":
-            return self.db.get(key, {})
-        else:
-            doc = self.db.document(key).get()
-            if doc.exists:
-                return doc.to_dict()
-            else:
-                return {}
+    def _get_from_db(self, key):
+        conn = _get_db()
+        try:
+            row = conn.execute("SELECT data FROM flocks WHERE flock_id = ?", (key,)).fetchone()
+            return json.loads(row[0]) if row else {}
+        finally:
+            conn.close()
 
-    def set_in_db(self, key, value):
-        if self.db_type == "local":
-            self.db[key] = value
-        else:
-            self.db.document(key).set(value)
+    def _set_in_db(self, key, value):
+        conn = _get_db()
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO flocks (flock_id, data, updated_at) VALUES (?, ?, ?)",
+                (key, json.dumps(value), time.time()),
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
     def set_flock_name(self, name):
         self.flock_name = name
@@ -152,7 +165,6 @@ class Flock:
 
     def sync_flock(self):
         if self.flock_id:
-            flock_db = self.get_from_db(self.flock_id)
             flock_current = {
                 "flock_id": self.flock_id,
                 "flock_entries": self.flock_entries,
@@ -160,10 +172,7 @@ class Flock:
                 "selection": self.selection,
                 "direct_person_ids": list(self.direct_person_ids),
             }
-            self.set_in_db(self.flock_id, {
-                **flock_db,
-                **flock_current,
-            })
+            self._set_in_db(self.flock_id, flock_current)
 
     def score_flock(self):
         """Score flock members using weighted, normalized scoring with TF-IDF."""

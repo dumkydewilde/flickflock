@@ -177,3 +177,23 @@ def test_get_flock_works_direct_boost():
     other_work = next(w for w in results if w["id"] == 60)
     # Direct person's work gets the 0.5 trust boost
     assert direct_work["count"] > other_work["count"]
+
+
+def test_sqlite_persistence():
+    """Flock data should survive a round-trip through SQLite."""
+    flock = Flock()
+    flock.update_selection({"id": 10, "media_type": "movie"})
+    flock.add_to_flock([
+        {"id": 1, "department": "Directing"},
+        {"id": 2, "department": "Acting", "order": 0},
+    ], primary_id=10, source_type="movie")
+    flock.sync_flock()
+    saved_id = flock.flock_id
+
+    # Load from DB in a new Flock instance
+    loaded = Flock(flock_id=saved_id)
+    assert loaded.flock_id == saved_id
+    assert len(loaded.selection) == 1
+    assert loaded.selection[0]["id"] == 10
+    assert len(loaded.flock_entries) == 1
+    assert len(loaded.flock_entries[0]["entities"]) == 2
