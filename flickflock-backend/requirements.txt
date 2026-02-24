@@ -1,6 +1,5 @@
-Flask==3.1.*
-gunicorn==23.*
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
 requests==2.*
 diskcache==5.*
 xxhash==3.*
-flask-cors==5.*
