@@ -17,6 +17,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:4173",
         "https://flickflock.pages.dev",
+        "null",  # browsers send Origin: null after cross-origin 307 redirect
     ],
     allow_origin_regex=r"https://.*\.flickflock\.pages\.dev",
     allow_methods=["*"],
