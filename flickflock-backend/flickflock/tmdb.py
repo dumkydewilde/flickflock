@@ -84,7 +84,29 @@ class TMDB:
         """Provide a search query to search the TMDB database and return a dict with the first page of results."""
         print(f"searching for: {search_query}")
 
-        return self.request(f"search/{type}", params={"query" :  search_query})["results"]
+        results = self.request(f"search/{type}", params={"query": search_query})["results"]
+        return self._rank_search_results(results, search_query)
+
+    @staticmethod
+    def _rank_search_results(results: list, query: str) -> list:
+        """Re-rank search results to boost exact and prefix title matches."""
+        q = query.lower().strip()
+
+        def sort_key(item):
+            title = (item.get("title") or item.get("name") or "").lower()
+            popularity = item.get("popularity", 0)
+            # Exact match gets highest boost
+            if title == q:
+                boost = 3
+            elif title.startswith(q):
+                boost = 2
+            elif q in title:
+                boost = 1
+            else:
+                boost = 0
+            return (-boost, -popularity)
+
+        return sorted(results, key=sort_key)
 
     def get_credits(self, media_type: str, id: int) -> list:
         return self.request(f"{media_type}/{id}/credits")

@@ -71,7 +71,10 @@ export const useFlockStore = defineStore('flock', () => {
     if (!Array.isArray(data)) data = [data]
 
     try {
-      const res = await axios.post(`${BASE_URL}/flock/${flockId.value}`, { data })
+      const url = flockId.value
+        ? `${BASE_URL}/flock/${flockId.value}`
+        : `${BASE_URL}/flock`
+      const res = await axios.post(url, { data })
       flockId.value = res.data.flock_id
       setURLParam('flockId', flockId.value)
 
