@@ -1,6 +1,8 @@
-import os, requests, xxhash
+import logging, os, requests, xxhash
 from datetime import date
-from diskcache import Cache 
+from diskcache import Cache
+
+log = logging.getLogger(__name__)
 
 class TMDB:    
     api_key_name = "TMDB_API_KEY"
@@ -70,6 +72,10 @@ class TMDB:
         else:
             res = requests.request(method, request_url).json()
             self.tmdb_requests += 1
+
+        if "status_message" in res:
+            log.error("TMDB API error: %s", res["status_message"])
+            raise RuntimeError(f"TMDB API error: {res['status_message']}")
 
         return res
 
