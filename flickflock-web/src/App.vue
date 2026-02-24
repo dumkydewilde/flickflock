@@ -15,10 +15,6 @@ function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-function scrollTo(id) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-}
-
 const exampleSelections = [
   { label: '30 Rock + Andy Samberg', items: [
     { id: 4608, name: '30 Rock', media_type: 'tv', poster_path: '/k3RbNzPEPW0cmkFkn1xVCTk3Qde.jpg' },
@@ -161,6 +157,10 @@ onMounted(() => {
         Results
       </v-btn>
     </v-bottom-navigation>
+
+    <v-snackbar v-model="store.snackbar.show" :color="store.snackbar.color" :timeout="3000">
+      {{ store.snackbar.text }}
+    </v-snackbar>
   </v-app>
 </template>
 
