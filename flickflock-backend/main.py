@@ -17,6 +17,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:4173",
         "https://flickflock.pages.dev",
+        "null",  # browsers send Origin: null after cross-origin 307 redirect
     ],
     allow_origin_regex=r"https://.*\.flickflock\.pages\.dev",
     allow_methods=["*"],
@@ -42,6 +43,22 @@ def get_person_details(person_id: int):
     except Exception:
         log.exception("Failed to get person %d", person_id)
         raise HTTPException(404, "Person not found")
+
+
+@app.get("/api/{media_type}/{content_id}/details")
+def get_media_details(content_id: int, media_type: str):
+    if media_type not in ("movie", "tv"):
+        raise HTTPException(400, "media_type must be 'movie' or 'tv'")
+    try:
+        details = tmdb.get_details(media_type, content_id)
+        credits = tmdb.get_credits(media_type, content_id)
+        top_cast = credits.get("cast", [])[:8]
+        top_crew = [c for c in credits.get("crew", [])
+                    if c.get("job") in ("Director", "Writer", "Screenplay")]
+        return {**details, "top_cast": top_cast, "top_crew": top_crew}
+    except Exception:
+        log.exception("Failed to get details for %s/%d", media_type, content_id)
+        raise HTTPException(404, "Content not found")
 
 
 @app.get("/api/{media_type}/{content_id}")

@@ -12,6 +12,7 @@ export const useFlockStore = defineStore('flock', () => {
   const flockWorks = ref([])
   const flockLoading = ref(false)
   const flockWorksLoading = ref(false)
+  const snackbar = ref({ show: false, text: '', color: 'info' })
 
   // Filters
   const mediaTypeFilter = ref('all') // 'all', 'movie', 'tv'
@@ -88,6 +89,7 @@ export const useFlockStore = defineStore('flock', () => {
       await fetchFlock()
     } catch (err) {
       console.error('addToFlock error:', err)
+      snackbar.value = { show: true, text: 'Failed to create flock — check console', color: 'error' }
       flockLoading.value = false
     }
   }
@@ -180,9 +182,14 @@ export const useFlockStore = defineStore('flock', () => {
     }
   }
 
-  function copyShareUrl() {
+  async function copyShareUrl() {
     const url = `${window.location.origin}?flockId=${flockId.value}`
-    navigator.clipboard.writeText(url)
+    try {
+      await navigator.clipboard.writeText(url)
+      snackbar.value = { show: true, text: 'Link copied to clipboard', color: 'info' }
+    } catch {
+      snackbar.value = { show: true, text: 'Could not copy link', color: 'error' }
+    }
   }
 
   return {
@@ -195,6 +202,7 @@ export const useFlockStore = defineStore('flock', () => {
     mediaTypeFilter,
     sortBy,
     filteredFlockWorks,
+    snackbar,
     addSearchResult,
     removeSelection,
     fetchFlock,

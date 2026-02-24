@@ -11,6 +11,10 @@ import ResultsGrid from './components/ResultsGrid.vue'
 const { mdAndUp } = useDisplay()
 const store = useFlockStore()
 
+function scrollTo(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 const exampleSelections = [
   { label: '30 Rock + Andy Samberg', items: [
     { id: 4608, name: '30 Rock', media_type: 'tv', poster_path: '/k3RbNzPEPW0cmkFkn1xVCTk3Qde.jpg' },
@@ -89,7 +93,7 @@ onMounted(() => {
         <!-- Main content (after selections) -->
         <template v-else>
           <!-- Selection chips -->
-          <section class="mb-6">
+          <section id="selection" class="mb-6">
             <h3 class="text-overline text-medium-emphasis mb-2">Your selection</h3>
             <SelectionList />
             <p v-if="store.selection.length < 2" class="text-caption text-medium-emphasis mt-2">
@@ -100,7 +104,7 @@ onMounted(() => {
           <v-row>
             <!-- Flock members -->
             <v-col cols="12" :md="4">
-              <section>
+              <section id="myflock">
                 <h3 class="text-overline text-medium-emphasis mb-2">
                   Your Flock
                   <v-progress-circular
@@ -118,7 +122,7 @@ onMounted(() => {
 
             <!-- Results -->
             <v-col cols="12" :md="8">
-              <section>
+              <section id="results">
                 <h3 class="text-overline text-medium-emphasis mb-2">
                   Recommended for you
                   <v-progress-circular
@@ -140,19 +144,23 @@ onMounted(() => {
 
     <!-- Mobile bottom nav -->
     <v-bottom-navigation v-if="!mdAndUp && store.selection.length > 0" grow>
-      <v-btn href="#selection">
+      <v-btn @click="scrollTo('selection')">
         <v-icon>mdi-cursor-pointer</v-icon>
         Selection
       </v-btn>
-      <v-btn href="#myflock">
+      <v-btn @click="scrollTo('myflock')">
         <v-icon>mdi-bird</v-icon>
         Flock
       </v-btn>
-      <v-btn href="#results">
+      <v-btn @click="scrollTo('results')">
         <v-icon>mdi-playlist-check</v-icon>
         Results
       </v-btn>
     </v-bottom-navigation>
+
+    <v-snackbar v-model="store.snackbar.show" :color="store.snackbar.color" :timeout="3000">
+      {{ store.snackbar.text }}
+    </v-snackbar>
   </v-app>
 </template>
 

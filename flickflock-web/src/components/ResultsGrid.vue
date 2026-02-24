@@ -1,11 +1,20 @@
 <script setup>
+import { ref, computed } from 'vue'
+import axios from 'axios'
 import { useFlockStore } from '../stores/flock'
+
+const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 const store = useFlockStore()
 
-function posterUrl(item) {
+// Modal state
+const showModal = ref(false)
+const modalLoading = ref(false)
+const mediaDetail = ref(null)
+
+function posterUrl(item, size = 'w300') {
   return item.poster_path
-    ? `https://image.tmdb.org/t/p/w300${item.poster_path}`
+    ? `https://image.tmdb.org/t/p/${size}${item.poster_path}`
     : null
 }
 
@@ -17,6 +26,38 @@ function releaseYear(item) {
 function tmdbUrl(item) {
   const type = item.media_type || 'movie'
   return `https://www.themoviedb.org/${type}/${item.id}`
+}
+
+async function openMediaModal(work, event) {
+  event.preventDefault()
+  mediaDetail.value = null
+  showModal.value = true
+  modalLoading.value = true
+
+  try {
+    const type = work.media_type || 'movie'
+    const res = await axios.get(`${BASE_URL}/${type}/${work.id}/details`)
+    mediaDetail.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch media details:', err)
+  } finally {
+    modalLoading.value = false
+  }
+}
+
+const runtime = computed(() => {
+  if (!mediaDetail.value) return ''
+  const mins = mediaDetail.value.runtime || mediaDetail.value.episode_run_time?.[0]
+  if (!mins) return ''
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+})
+
+function profileUrl(person) {
+  return person.profile_path
+    ? `https://image.tmdb.org/t/p/w92${person.profile_path}`
+    : null
 }
 </script>
 
@@ -68,6 +109,7 @@ function tmdbUrl(item) {
         target="_blank"
         rel="noopener"
         class="result-card text-decoration-none"
+        @click="openMediaModal(work, $event)"
       >
         <div class="poster-wrapper">
           <v-img
@@ -104,6 +146,93 @@ function tmdbUrl(item) {
         </div>
       </a>
     </div>
+
+    <!-- Media detail modal -->
+    <v-dialog v-model="showModal" max-width="520" scrollable>
+      <v-card color="surface">
+        <v-card-text class="pa-0">
+          <div v-if="modalLoading" class="text-center py-12">
+            <v-progress-circular color="primary" indeterminate />
+          </div>
+
+          <template v-else-if="mediaDetail">
+            <!-- Backdrop / poster header -->
+            <div class="modal-header" :style="mediaDetail.backdrop_path ? { backgroundImage: `linear-gradient(to bottom, transparent 30%, rgb(var(--v-theme-surface)) 100%), url(https://image.tmdb.org/t/p/w780${mediaDetail.backdrop_path})` } : {}">
+              <div class="d-flex pa-4 pt-12 ga-4" style="position: relative;">
+                <v-img
+                  v-if="posterUrl(mediaDetail, 'w185')"
+                  :src="posterUrl(mediaDetail, 'w185')"
+                  :aspect-ratio="2/3"
+                  cover
+                  class="rounded-lg flex-shrink-0"
+                  width="100"
+                />
+                <div>
+                  <h2 class="text-h6 mb-1">{{ mediaDetail.title || mediaDetail.name }}</h2>
+                  <div class="d-flex flex-wrap ga-2 align-center mb-2">
+                    <span class="text-caption text-medium-emphasis">{{ releaseYear(mediaDetail) }}</span>
+                    <span v-if="runtime" class="text-caption text-medium-emphasis">{{ runtime }}</span>
+                    <v-chip v-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary">
+                      {{ mediaDetail.vote_average.toFixed(1) }}
+                    </v-chip>
+                  </div>
+                  <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1">
+                    <v-chip v-for="g in mediaDetail.genres.slice(0, 3)" :key="g.id" size="x-small" variant="outlined">
+                      {{ g.name }}
+                    </v-chip>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="px-4 pb-4">
+              <p v-if="mediaDetail.overview" class="text-body-2 mb-4" style="line-height: 1.5;">
+                {{ mediaDetail.overview }}
+              </p>
+
+              <!-- Crew -->
+              <div v-if="mediaDetail.top_crew?.length" class="mb-3">
+                <div v-for="person in mediaDetail.top_crew" :key="`crew-${person.id}-${person.job}`" class="text-caption">
+                  <span class="text-medium-emphasis">{{ person.job }}:</span> {{ person.name }}
+                </div>
+              </div>
+
+              <!-- Cast -->
+              <div v-if="mediaDetail.top_cast?.length" class="mb-2">
+                <p class="text-overline text-medium-emphasis mb-2">Cast</p>
+                <div class="cast-row">
+                  <div v-for="person in mediaDetail.top_cast" :key="person.id" class="cast-item">
+                    <v-avatar :size="40" color="background">
+                      <v-img v-if="profileUrl(person)" :src="profileUrl(person)" cover />
+                      <v-icon v-else icon="mdi-account" size="20" />
+                    </v-avatar>
+                    <div class="cast-info">
+                      <span class="text-caption font-weight-medium">{{ person.name }}</span>
+                      <span class="text-caption text-medium-emphasis">{{ person.character }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </v-card-text>
+
+        <v-card-actions class="pa-4 pt-0">
+          <v-btn
+            v-if="mediaDetail"
+            variant="text"
+            :href="tmdbUrl(mediaDetail)"
+            target="_blank"
+            size="small"
+          >
+            TMDB
+            <v-icon end icon="mdi-open-in-new" size="14" />
+          </v-btn>
+          <v-spacer />
+          <v-btn variant="text" @click="showModal = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -174,6 +303,40 @@ function tmdbUrl(item) {
 }
 
 .card-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-header {
+  background-size: cover;
+  background-position: center top;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.cast-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cast-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cast-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.cast-info span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

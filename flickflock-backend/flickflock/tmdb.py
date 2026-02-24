@@ -87,18 +87,29 @@ class TMDB:
         results = self.request(f"search/{type}", params={"query": search_query})["results"]
         return self._rank_search_results(results, search_query)
 
+    _ARTICLES = {"the ", "a ", "an "}
+
+    @staticmethod
+    def _strip_article(title: str) -> str:
+        for art in TMDB._ARTICLES:
+            if title.startswith(art):
+                return title[len(art):]
+        return title
+
     @staticmethod
     def _rank_search_results(results: list, query: str) -> list:
         """Re-rank search results to boost exact and prefix title matches."""
         q = query.lower().strip()
+        q_no_article = TMDB._strip_article(q)
 
         def sort_key(item):
             title = (item.get("title") or item.get("name") or "").lower()
+            title_no_article = TMDB._strip_article(title)
             popularity = item.get("popularity", 0)
-            # Exact match gets highest boost
-            if title == q:
+
+            if title == q or title_no_article == q_no_article:
                 boost = 3
-            elif title.startswith(q):
+            elif title.startswith(q) or title_no_article.startswith(q_no_article):
                 boost = 2
             elif q in title:
                 boost = 1
@@ -107,6 +118,10 @@ class TMDB:
             return (-boost, -popularity)
 
         return sorted(results, key=sort_key)
+
+    def get_details(self, media_type: str, id: int) -> dict:
+        """Get details for a movie or TV show."""
+        return self.request(f"{media_type}/{id}")
 
     def get_credits(self, media_type: str, id: int) -> list:
         return self.request(f"{media_type}/{id}/credits")
