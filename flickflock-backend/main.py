@@ -45,31 +45,60 @@ def get_person_details(person_id: int):
         raise HTTPException(404, "Person not found")
 
 
-@app.get("/api/{media_type}/{content_id}/details")
-def get_media_details(content_id: int, media_type: str):
-    if media_type not in ("movie", "tv"):
-        raise HTTPException(400, "media_type must be 'movie' or 'tv'")
+# --- Flock routes MUST come before the generic {media_type}/{content_id} routes ---
+# FastAPI matches routes in definition order; the generic parameterized routes
+# would otherwise swallow /api/flock/... paths and fail parsing the UUID as int.
+
+@app.get("/api/flock/{flock_id}/details")
+def flock_details(flock_id: str):
+    if not flock_id:
+        raise HTTPException(400, "Invalid Flock ID")
     try:
-        details = tmdb.get_details(media_type, content_id)
-        credits = tmdb.get_credits(media_type, content_id)
-        top_cast = credits.get("cast", [])[:8]
-        top_crew = [c for c in credits.get("crew", [])
-                    if c.get("job") in ("Director", "Writer", "Screenplay")]
-        return {**details, "top_cast": top_cast, "top_crew": top_crew}
+        f = Flock(flock_id=flock_id)
+        return {
+            "flock_id": f.flock_id,
+            "selection": f.get_selection(),
+            "flock": f.get_flock(details_function=person_details_func, most_common=25),
+        }
     except Exception:
-        log.exception("Failed to get details for %s/%d", media_type, content_id)
-        raise HTTPException(404, "Content not found")
+        log.exception("Failed to get flock details %s", flock_id)
+        raise HTTPException(500, "Failed to load flock details")
 
 
-@app.get("/api/{media_type}/{content_id}")
-def get_content_details(content_id: int, media_type: str):
-    if media_type not in ("movie", "tv"):
-        raise HTTPException(400, "media_type must be 'movie' or 'tv'")
+@app.get("/api/flock/{flock_id}/results")
+def flock_results(flock_id: str):
+    if not flock_id:
+        raise HTTPException(400, "Invalid Flock ID")
     try:
-        return tmdb.get_people_by_media_id(content_id, media_type)
+        f = Flock(flock_id=flock_id)
+        works = f.get_flock_works(tmdb_movies_from_person, most_common=10)
+        return {
+            "flock_id": f.flock_id,
+            "selection": f.get_selection(),
+            "flock_works": works[:50],
+        }
     except Exception:
-        log.exception("Failed to get %s/%d", media_type, content_id)
-        raise HTTPException(404, "Content not found")
+        log.exception("Failed to get flock results %s", flock_id)
+        raise HTTPException(500, "Failed to load results")
+
+
+@app.post("/api/flock/{flock_id}/remove")
+def flock_remove(flock_id: str, request_body: dict):
+    selection_id = request_body.get("selection_id") if request_body else None
+    if not selection_id:
+        raise HTTPException(400, "Missing selection_id")
+    try:
+        f = Flock(flock_id=flock_id)
+        f.remove_selection(selection_id)
+        f.sync_flock()
+        return {
+            "flock_id": f.flock_id,
+            "selection": f.get_selection(),
+            "flock": f.get_flock(most_common=25),
+        }
+    except Exception:
+        log.exception("Failed to remove selection from flock %s", flock_id)
+        raise HTTPException(500, "Failed to remove selection")
 
 
 @app.get("/api/flock/{flock_id}")
@@ -139,56 +168,33 @@ def update_flock(request_body: dict, flock_id: str | None = None):
         raise HTTPException(500, "Failed to update flock")
 
 
-@app.get("/api/flock/{flock_id}/details")
-def flock_details(flock_id: str):
-    if not flock_id:
-        raise HTTPException(400, "Invalid Flock ID")
+# --- Generic media routes AFTER flock routes to avoid shadowing ---
+
+@app.get("/api/{media_type}/{content_id}/details")
+def get_media_details(content_id: int, media_type: str):
+    if media_type not in ("movie", "tv"):
+        raise HTTPException(400, "media_type must be 'movie' or 'tv'")
     try:
-        f = Flock(flock_id=flock_id)
-        return {
-            "flock_id": f.flock_id,
-            "selection": f.get_selection(),
-            "flock": f.get_flock(details_function=person_details_func, most_common=25),
-        }
+        details = tmdb.get_details(media_type, content_id)
+        credits = tmdb.get_credits(media_type, content_id)
+        top_cast = credits.get("cast", [])[:8]
+        top_crew = [c for c in credits.get("crew", [])
+                    if c.get("job") in ("Director", "Writer", "Screenplay")]
+        return {**details, "top_cast": top_cast, "top_crew": top_crew}
     except Exception:
-        log.exception("Failed to get flock details %s", flock_id)
-        raise HTTPException(500, "Failed to load flock details")
+        log.exception("Failed to get details for %s/%d", media_type, content_id)
+        raise HTTPException(404, "Content not found")
 
 
-@app.get("/api/flock/{flock_id}/results")
-def flock_results(flock_id: str):
-    if not flock_id:
-        raise HTTPException(400, "Invalid Flock ID")
+@app.get("/api/{media_type}/{content_id}")
+def get_content_details(content_id: int, media_type: str):
+    if media_type not in ("movie", "tv"):
+        raise HTTPException(400, "media_type must be 'movie' or 'tv'")
     try:
-        f = Flock(flock_id=flock_id)
-        works = f.get_flock_works(tmdb_movies_from_person, most_common=10)
-        return {
-            "flock_id": f.flock_id,
-            "selection": f.get_selection(),
-            "flock_works": works[:50],
-        }
+        return tmdb.get_people_by_media_id(content_id, media_type)
     except Exception:
-        log.exception("Failed to get flock results %s", flock_id)
-        raise HTTPException(500, "Failed to load results")
-
-
-@app.post("/api/flock/{flock_id}/remove")
-def flock_remove(flock_id: str, request_body: dict):
-    selection_id = request_body.get("selection_id") if request_body else None
-    if not selection_id:
-        raise HTTPException(400, "Missing selection_id")
-    try:
-        f = Flock(flock_id=flock_id)
-        f.remove_selection(selection_id)
-        f.sync_flock()
-        return {
-            "flock_id": f.flock_id,
-            "selection": f.get_selection(),
-            "flock": f.get_flock(most_common=25),
-        }
-    except Exception:
-        log.exception("Failed to remove selection from flock %s", flock_id)
-        raise HTTPException(500, "Failed to remove selection")
+        log.exception("Failed to get %s/%d", media_type, content_id)
+        raise HTTPException(404, "Content not found")
 
 
 def person_details_func(id):
