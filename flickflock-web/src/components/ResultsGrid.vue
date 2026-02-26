@@ -74,7 +74,8 @@ function addPersonToFlock(person) {
 
 function openPersonDetail(person) {
   showModal.value = false
-  openPerson(person)
+  // Delay so Vuetify's dialog close transition completes before opening the next
+  setTimeout(() => openPerson(person), 200)
 }
 
 function isPersonSelected(person) {
@@ -181,14 +182,6 @@ watch(openPersonRequest, () => {
     <!-- Media detail modal -->
     <v-dialog v-model="showModal" max-width="520" scrollable>
       <v-card color="surface">
-        <v-btn
-          icon="mdi-close"
-          variant="text"
-          size="small"
-          class="modal-close-btn"
-          @click="showModal = false"
-        />
-
         <v-card-text class="pa-0">
           <div v-if="modalLoading" class="text-center py-12">
             <v-progress-circular color="primary" indeterminate />
@@ -197,6 +190,14 @@ watch(openPersonRequest, () => {
           <template v-else-if="mediaDetail">
             <!-- Backdrop / poster header -->
             <div class="modal-header" :style="mediaDetail.backdrop_path ? { backgroundImage: `linear-gradient(to bottom, transparent 30%, rgb(var(--v-theme-surface)) 100%), url(https://image.tmdb.org/t/p/w780${mediaDetail.backdrop_path})` } : {}">
+              <v-btn
+                icon="mdi-close"
+                variant="flat"
+                size="small"
+                color="surface"
+                class="modal-close-btn"
+                @click="showModal = false"
+              />
               <div class="d-flex pa-4 pt-12 ga-4" style="position: relative;">
                 <v-img
                   v-if="posterUrl(mediaDetail, 'w185')"
@@ -373,10 +374,12 @@ watch(openPersonRequest, () => {
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 1;
+  z-index: 2;
+  opacity: 0.9;
 }
 
 .modal-header {
+  position: relative;
   background-size: cover;
   background-position: center top;
   min-height: 160px;

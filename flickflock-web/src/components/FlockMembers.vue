@@ -67,7 +67,8 @@ function addWorkToFlock(work) {
 
 function openWorkDetail(work) {
   showModal.value = false
-  openMedia(work)
+  // Delay so Vuetify's dialog close transition completes before opening the next
+  setTimeout(() => openMedia(work), 200)
 }
 
 const knownFor = computed(() => {
