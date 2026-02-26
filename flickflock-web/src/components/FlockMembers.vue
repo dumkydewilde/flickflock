@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 import { useFlockStore } from '../stores/flock'
+import { useDetailModals } from '../composables/useDetailModals'
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 const store = useFlockStore()
+const { openPersonRequest, openMediaRequest, openPerson, openMedia } = useDetailModals()
 
 const members = computed(() => {
   return Object.values(store.flock)
@@ -53,6 +55,21 @@ function addAndClose() {
   showModal.value = false
 }
 
+function addWorkToFlock(work) {
+  store.addSearchResult({
+    id: work.id,
+    name: work.title || work.name,
+    title: work.title || work.name,
+    media_type: work.media_type || 'movie',
+    poster_path: work.poster_path,
+  })
+}
+
+function openWorkDetail(work) {
+  showModal.value = false
+  openMedia(work)
+}
+
 const knownFor = computed(() => {
   if (!personDetail.value) return []
   const cast = personDetail.value.cast || []
@@ -73,6 +90,20 @@ const knownFor = computed(() => {
 const isAlreadySelected = computed(() => {
   if (!selectedMember.value) return false
   return store.selection.some(s => s.id === selectedMember.value.id)
+})
+
+function isWorkSelected(work) {
+  return store.selection.some(s => s.id === work.id)
+}
+
+// Cross-modal navigation: another component requests opening a person modal
+watch(openPersonRequest, (req) => {
+  if (req) openPersonModal(req)
+})
+
+// Close this modal when media modal is opening
+watch(openMediaRequest, () => {
+  showModal.value = false
 })
 </script>
 
@@ -143,17 +174,35 @@ const isAlreadySelected = computed(() => {
             <div v-if="knownFor.length" class="mb-2">
               <p class="text-overline text-medium-emphasis mb-2">Known for</p>
               <div class="known-for-grid">
-                <div v-for="work in knownFor" :key="work.id" class="known-for-item">
-                  <v-img
-                    v-if="work.poster_path"
-                    :src="`https://image.tmdb.org/t/p/w92${work.poster_path}`"
-                    :aspect-ratio="2/3"
-                    cover
-                    class="rounded"
-                    width="60"
-                  />
-                  <div v-else class="poster-placeholder-sm rounded d-flex align-center justify-center">
-                    <v-icon icon="mdi-movie-outline" size="20" />
+                <div v-for="work in knownFor" :key="work.id" class="known-for-item" @click="openWorkDetail(work)">
+                  <div class="known-for-poster">
+                    <v-img
+                      v-if="work.poster_path"
+                      :src="`https://image.tmdb.org/t/p/w92${work.poster_path}`"
+                      :aspect-ratio="2/3"
+                      cover
+                      class="rounded"
+                      width="64"
+                    />
+                    <div v-else class="poster-placeholder-sm rounded d-flex align-center justify-center">
+                      <v-icon icon="mdi-movie-outline" size="20" />
+                    </div>
+                    <v-btn
+                      v-if="!isWorkSelected(work)"
+                      icon="mdi-plus"
+                      size="x-small"
+                      variant="flat"
+                      color="primary"
+                      class="add-btn"
+                      @click.stop="addWorkToFlock(work)"
+                    />
+                    <v-icon
+                      v-else
+                      icon="mdi-check-circle"
+                      size="18"
+                      color="info"
+                      class="added-icon"
+                    />
                   </div>
                   <span class="text-caption known-for-title">{{ work.title || work.name }}</span>
                 </div>
@@ -217,9 +266,12 @@ const isAlreadySelected = computed(() => {
 .member-name {
   max-width: 76px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   line-height: 1.2;
+  text-align: center;
+  word-break: break-word;
 }
 
 .biography {
@@ -237,21 +289,47 @@ const isAlreadySelected = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 64px;
+  width: 68px;
   flex-shrink: 0;
+  cursor: pointer;
+}
+
+.known-for-item:hover .known-for-poster {
+  opacity: 0.85;
+}
+
+.known-for-poster {
+  position: relative;
+  transition: opacity 0.2s;
 }
 
 .known-for-title {
-  max-width: 64px;
+  max-width: 68px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   text-align: center;
   margin-top: 4px;
+  line-height: 1.3;
+}
+
+.add-btn {
+  position: absolute;
+  bottom: 2px;
+  right: -2px;
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.added-icon {
+  position: absolute;
+  bottom: 4px;
+  right: 0;
 }
 
 .poster-placeholder-sm {
-  width: 60px;
+  width: 64px;
   aspect-ratio: 2 / 3;
   background: rgba(21, 16, 24, 0.8);
 }

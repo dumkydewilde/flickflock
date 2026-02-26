@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 import { useFlockStore } from '../stores/flock'
+import { useDetailModals } from '../composables/useDetailModals'
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 const store = useFlockStore()
+const { openMediaRequest, openPersonRequest, openPerson, openMedia } = useDetailModals()
 
 // Modal state
 const showModal = ref(false)
@@ -15,6 +17,12 @@ const mediaDetail = ref(null)
 function posterUrl(item, size = 'w300') {
   return item.poster_path
     ? `https://image.tmdb.org/t/p/${size}${item.poster_path}`
+    : null
+}
+
+function profileUrl(person) {
+  return person.profile_path
+    ? `https://image.tmdb.org/t/p/w92${person.profile_path}`
     : null
 }
 
@@ -29,7 +37,7 @@ function tmdbUrl(item) {
 }
 
 async function openMediaModal(work, event) {
-  event.preventDefault()
+  if (event) event.preventDefault()
   mediaDetail.value = null
   showModal.value = true
   modalLoading.value = true
@@ -54,11 +62,34 @@ const runtime = computed(() => {
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 })
 
-function profileUrl(person) {
-  return person.profile_path
-    ? `https://image.tmdb.org/t/p/w92${person.profile_path}`
-    : null
+function addPersonToFlock(person) {
+  store.addSearchResult({
+    id: person.id,
+    name: person.name,
+    media_type: 'person',
+    profile_path: person.profile_path,
+    known_for_department: person.known_for_department,
+  })
 }
+
+function openPersonDetail(person) {
+  showModal.value = false
+  openPerson(person)
+}
+
+function isPersonSelected(person) {
+  return store.selection.some(s => s.id === person.id)
+}
+
+// Cross-modal navigation: another component requests opening a media modal
+watch(openMediaRequest, (req) => {
+  if (req) openMediaModal(req)
+})
+
+// Close this modal when person modal is opening
+watch(openPersonRequest, () => {
+  showModal.value = false
+})
 </script>
 
 <template>
@@ -150,6 +181,14 @@ function profileUrl(person) {
     <!-- Media detail modal -->
     <v-dialog v-model="showModal" max-width="520" scrollable>
       <v-card color="surface">
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          size="small"
+          class="modal-close-btn"
+          @click="showModal = false"
+        />
+
         <v-card-text class="pa-0">
           <div v-if="modalLoading" class="text-center py-12">
             <v-progress-circular color="primary" indeterminate />
@@ -201,7 +240,12 @@ function profileUrl(person) {
               <div v-if="mediaDetail.top_cast?.length" class="mb-2">
                 <p class="text-overline text-medium-emphasis mb-2">Cast</p>
                 <div class="cast-row">
-                  <div v-for="person in mediaDetail.top_cast" :key="person.id" class="cast-item">
+                  <div
+                    v-for="person in mediaDetail.top_cast"
+                    :key="person.id"
+                    class="cast-item"
+                    @click="openPersonDetail(person)"
+                  >
                     <v-avatar :size="40" color="background">
                       <v-img v-if="profileUrl(person)" :src="profileUrl(person)" cover />
                       <v-icon v-else icon="mdi-account" size="20" />
@@ -210,6 +254,21 @@ function profileUrl(person) {
                       <span class="text-caption font-weight-medium">{{ person.name }}</span>
                       <span class="text-caption text-medium-emphasis">{{ person.character }}</span>
                     </div>
+                    <v-spacer />
+                    <v-btn
+                      v-if="!isPersonSelected(person)"
+                      icon="mdi-plus"
+                      size="x-small"
+                      variant="tonal"
+                      color="primary"
+                      @click.stop="addPersonToFlock(person)"
+                    />
+                    <v-icon
+                      v-else
+                      icon="mdi-check-circle"
+                      size="20"
+                      color="info"
+                    />
                   </div>
                 </div>
               </div>
@@ -304,8 +363,17 @@ function profileUrl(person) {
 
 .card-title {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
 }
 
 .modal-header {
@@ -320,13 +388,21 @@ function profileUrl(person) {
 .cast-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .cast-item {
   display: flex;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.cast-item:hover {
+  background-color: rgba(228, 163, 58, 0.1);
 }
 
 .cast-info {
