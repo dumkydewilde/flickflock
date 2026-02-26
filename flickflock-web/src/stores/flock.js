@@ -102,7 +102,6 @@ export const useFlockStore = defineStore('flock', () => {
         selection_id: selectionId,
       })
       selection.value = res.data.selection
-      flock.value = res.data.flock
 
       trackStructEvent({
         category: 'flock',
@@ -112,8 +111,9 @@ export const useFlockStore = defineStore('flock', () => {
       })
 
       if (selection.value.length >= 2) {
-        await fetchFlockWorks()
+        await fetchFlock()
       } else {
+        flock.value = {}
         flockWorks.value = []
       }
     } catch (err) {
