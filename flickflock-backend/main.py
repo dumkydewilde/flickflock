@@ -205,9 +205,13 @@ def person_details_func(id):
 
 def tmdb_movies_from_person(id):
     keys = ["id", "overview", "media_type", "poster_path", "popularity", "first_air_date", "release_date", "original_language"]
+    excluded = TMDB.EXCLUDED_TV_GENRE_IDS
     results = []
     person_details = tmdb.get_person_by_id(id)
     for i in [*person_details.get("cast", []), *person_details.get("crew", [])]:
+        # Skip talk shows, news, etc. — they pollute results
+        if set(i.get("genre_ids", [])) & excluded:
+            continue
         name_key = "title" if "title" in i else "name"
         results.append({
             "title": i[name_key],
