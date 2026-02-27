@@ -51,39 +51,41 @@ onMounted(() => {
 <template>
   <v-app id="flickflock">
     <!-- Top bar -->
-    <v-app-bar flat color="background" class="px-3" density="comfortable">
-      <v-btn v-if="!isHome" icon="mdi-arrow-left" variant="text" size="small" to="/" class="mr-1" />
-      <v-app-bar-title style="flex: 0 1 auto; min-width: auto;">
+    <v-app-bar flat color="background" class="px-3" density="comfortable" :extension-height="40">
+      <v-app-bar-title>
         <router-link to="/" style="text-decoration: none; color: inherit;">
           <span class="text-primary font-weight-bold">Flick</span><span class="font-weight-light">Flock</span>
         </router-link>
       </v-app-bar-title>
-      <v-spacer />
-      <v-btn
-        v-if="store.flockId"
-        variant="text"
-        size="small"
-        prepend-icon="mdi-share-variant"
-        @click="store.copyShareUrl()"
-      >
-        Share
-      </v-btn>
-      <v-btn
-        variant="text"
-        size="small"
-        prepend-icon="mdi-bookmark-multiple-outline"
-        to="/bookmarks"
-      >
-        Bookmarks
-        <v-badge
-          v-if="bookmarkStore.items.length"
-          :content="bookmarkStore.items.length"
-          color="primary"
-          inline
-          class="ml-1"
-        />
-      </v-btn>
-      <v-btn variant="tonal" size="small" prepend-icon="mdi-bird" href="/">New</v-btn>
+
+      <template #extension>
+        <v-btn v-if="!isHome" icon="mdi-arrow-left" variant="text" size="small" to="/" />
+        <v-btn
+          v-if="store.flockId"
+          variant="text"
+          size="small"
+          prepend-icon="mdi-share-variant"
+          @click="store.copyShareUrl()"
+        >
+          Share
+        </v-btn>
+        <v-btn
+          variant="text"
+          size="small"
+          prepend-icon="mdi-bookmark-multiple-outline"
+          to="/bookmarks"
+        >
+          Bookmarks
+          <v-badge
+            v-if="bookmarkStore.items.length"
+            :content="bookmarkStore.items.length"
+            color="primary"
+            inline
+            class="ml-1"
+          />
+        </v-btn>
+        <v-btn variant="tonal" size="small" prepend-icon="mdi-bird" href="/">New</v-btn>
+      </template>
     </v-app-bar>
 
     <v-main>
