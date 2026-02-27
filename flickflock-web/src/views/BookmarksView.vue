@@ -408,12 +408,18 @@ onMounted(async () => {
   position: absolute;
   bottom: 6px;
   right: 6px;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.2s;
 }
 
-.bookmark-card:hover .remove-btn {
-  opacity: 1;
+@media (hover: hover) {
+  .remove-btn {
+    opacity: 0;
+  }
+
+  .bookmark-card:hover .remove-btn {
+    opacity: 1;
+  }
 }
 
 .card-info {

@@ -459,13 +459,18 @@ watch(openPersonRequest, () => {
   position: absolute;
   bottom: 6px;
   right: 6px;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.2s;
 }
 
-.result-card:hover .bookmark-btn,
-.bookmark-btn.is-bookmarked {
-  opacity: 1;
+@media (hover: hover) {
+  .bookmark-btn:not(.is-bookmarked) {
+    opacity: 0;
+  }
+
+  .result-card:hover .bookmark-btn {
+    opacity: 1;
+  }
 }
 
 .card-info {
