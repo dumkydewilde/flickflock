@@ -304,6 +304,7 @@ function tmdbImage(item) {
   min-width: 100%;
   padding: 0 8px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .suggestion-item {
@@ -402,16 +403,24 @@ function tmdbImage(item) {
 
 @media (max-width: 600px) {
   .carousel-page {
-    gap: 16px;
+    gap: 8px;
   }
 
   .poster {
-    width: 60px;
+    width: 44px;
   }
 
   .poster-plus {
-    font-size: 14px;
-    margin: 0 3px;
+    font-size: 12px;
+    margin: 0 2px;
+  }
+
+  .suggestion-label {
+    font-size: 11px;
+  }
+
+  .suggestion-tagline {
+    font-size: 10px;
   }
 }
 </style>
