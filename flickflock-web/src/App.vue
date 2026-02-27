@@ -52,8 +52,11 @@ onMounted(() => {
   <v-app id="flickflock">
     <!-- Top bar -->
     <v-app-bar flat color="background" class="px-3" density="comfortable">
-      <v-app-bar-title>
-        <span class="text-primary font-weight-bold">Flick</span><span class="font-weight-light">Flock</span>
+      <v-btn v-if="!isHome" icon="mdi-arrow-left" variant="text" size="small" to="/" class="mr-1" />
+      <v-app-bar-title style="flex: 0 1 auto; min-width: auto;">
+        <router-link to="/" style="text-decoration: none; color: inherit;">
+          <span class="text-primary font-weight-bold">Flick</span><span class="font-weight-light">Flock</span>
+        </router-link>
       </v-app-bar-title>
       <v-spacer />
       <v-btn
