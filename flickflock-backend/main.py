@@ -273,7 +273,7 @@ def person_details_func(id):
 
 def tmdb_movies_from_person(id):
     keys = ["id", "overview", "media_type", "poster_path", "popularity", "first_air_date", "release_date", "original_language"]
-    excluded = TMDB.EXCLUDED_TV_GENRE_IDS
+    excluded = TMDB.EXCLUDED_GENRE_IDS
     results = []
     person_details = tmdb.get_person_by_id(id)
     for i in [*person_details.get("cast", []), *person_details.get("crew", [])]:

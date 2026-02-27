@@ -151,11 +151,15 @@ class TMDB:
     # Departments worth including in filtered/transitive expansion
     KEY_CREW_DEPARTMENTS = {"Directing", "Writing", "Production", "Sound"}
 
-    # TMDB TV genre IDs to exclude — these create noisy connections
-    # (talk show hosts "work with" every guest, polluting recommendations)
-    EXCLUDED_TV_GENRE_IDS = {
+    # TMDB genre IDs to exclude — these create noisy connections
+    # (talk show hosts "work with" every guest, documentaries about actors
+    # aren't real collaborations, etc.)
+    EXCLUDED_GENRE_IDS = {
         10767,  # Talk (late night shows, talk shows)
         10763,  # News
+        99,     # Documentary (includes behind-the-scenes)
+        10764,  # Reality
+        10766,  # Soap
     }
 
     def get_people_by_media_id_filtered(self, id, media_type, max_cast=15):
@@ -195,7 +199,7 @@ class TMDB:
             seen.add(w["id"])
             # Skip talk shows, news, etc. — they create noisy connections
             genre_ids = set(w.get("genre_ids", []))
-            if genre_ids & self.EXCLUDED_TV_GENRE_IDS:
+            if genre_ids & self.EXCLUDED_GENRE_IDS:
                 continue
             top_works.append(w)
             if len(top_works) >= max_works:
