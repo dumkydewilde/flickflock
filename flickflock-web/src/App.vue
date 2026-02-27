@@ -4,6 +4,7 @@ import { useDisplay } from 'vuetify'
 import { enableActivityTracking } from '@snowplow/browser-tracker'
 import { useFlockStore } from './stores/flock'
 import Search from './components/Search.vue'
+import SuggestionCarousel from './components/SuggestionCarousel.vue'
 import SelectionList from './components/SelectionList.vue'
 import FlockMembers from './components/FlockMembers.vue'
 import ResultsGrid from './components/ResultsGrid.vue'
@@ -15,19 +16,8 @@ function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-const exampleSelections = [
-  { label: '30 Rock + Andy Samberg', items: [
-    { id: 4608, name: '30 Rock', media_type: 'tv', poster_path: '/k3RbNzPEPW0cmkFkn1xVCTk3Qde.jpg' },
-    { id: 154, name: 'Andy Samberg', media_type: 'person', profile_path: '/5MNbRsUzdhOHbiPYGosBUpsKYMR.jpg', known_for_department: 'Acting' },
-  ]},
-  { label: 'Inception + Interstellar', items: [
-    { id: 27205, title: 'Inception', media_type: 'movie', poster_path: '/ljsZTbVsrQSqZgWeep2B1QiDKuh.jpg' },
-    { id: 157336, title: 'Interstellar', media_type: 'movie', poster_path: '/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg' },
-  ]},
-]
-
-async function loadExample(example) {
-  for (const item of example.items) {
+async function loadSuggestion(suggestion) {
+  for (const item of suggestion.items) {
     await store.addSearchResult(item)
   }
 }
@@ -76,18 +66,8 @@ onMounted(() => {
             FlickFlock finds the people behind your favourite films and shows,
             then discovers what else they've made together.
           </p>
-          <p class="text-body-2 text-medium-emphasis mb-4">Try an example:</p>
-          <div class="d-flex justify-center flex-wrap ga-2">
-            <v-btn
-              v-for="ex in exampleSelections"
-              :key="ex.label"
-              variant="tonal"
-              color="primary"
-              @click="loadExample(ex)"
-            >
-              {{ ex.label }}
-            </v-btn>
-          </div>
+          <p class="text-body-2 text-medium-emphasis mb-4">Try a suggestion:</p>
+          <SuggestionCarousel @select="loadSuggestion" />
         </div>
 
         <!-- Main content (after selections) -->
