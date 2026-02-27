@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useDisplay } from 'vuetify'
 import { enableActivityTracking } from '@snowplow/browser-tracker'
 import { useFlockStore } from './stores/flock'
+import { useBookmarkStore } from './stores/bookmarks'
 import Search from './components/Search.vue'
 import SelectionList from './components/SelectionList.vue'
 import FlockMembers from './components/FlockMembers.vue'
@@ -10,6 +11,7 @@ import ResultsGrid from './components/ResultsGrid.vue'
 
 const { mdAndUp } = useDisplay()
 const store = useFlockStore()
+const bookmarkStore = useBookmarkStore()
 
 function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -34,6 +36,7 @@ async function loadExample(example) {
 
 onMounted(() => {
   store.init()
+  bookmarkStore.init()
   enableActivityTracking({
     minimumVisitLength: 30,
     heartbeatDelay: 10,
@@ -57,6 +60,21 @@ onMounted(() => {
         @click="store.copyShareUrl()"
       >
         Share
+      </v-btn>
+      <v-btn
+        variant="text"
+        size="small"
+        prepend-icon="mdi-bookmark-multiple-outline"
+        to="/bookmarks"
+      >
+        Bookmarks
+        <v-badge
+          v-if="bookmarkStore.items.length"
+          :content="bookmarkStore.items.length"
+          color="primary"
+          inline
+          class="ml-1"
+        />
       </v-btn>
       <v-btn variant="tonal" size="small" prepend-icon="mdi-bird" href="/">New</v-btn>
     </v-app-bar>
@@ -155,6 +173,10 @@ onMounted(() => {
       <v-btn @click="scrollTo('results')">
         <v-icon>mdi-playlist-check</v-icon>
         Results
+      </v-btn>
+      <v-btn to="/bookmarks">
+        <v-icon>mdi-bookmark-multiple-outline</v-icon>
+        Bookmarks
       </v-btn>
     </v-bottom-navigation>
 

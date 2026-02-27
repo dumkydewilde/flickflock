@@ -2,11 +2,13 @@
 import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 import { useFlockStore } from '../stores/flock'
+import { useBookmarkStore } from '../stores/bookmarks'
 import { useDetailModals } from '../composables/useDetailModals'
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 const store = useFlockStore()
+const bookmarkStore = useBookmarkStore()
 const { openMediaRequest, openPersonRequest, openPerson, openMedia } = useDetailModals()
 
 // Modal state
@@ -81,6 +83,29 @@ function openPersonDetail(person) {
 function isPersonSelected(person) {
   return store.selection.some(s => s.id === person.id)
 }
+
+function bookmarkItem(work) {
+  return {
+    id: work.id,
+    title: work.title || work.name,
+    media_type: work.media_type || 'movie',
+    poster_path: work.poster_path || null,
+    release_date: work.release_date || work.first_air_date || '',
+  }
+}
+
+function toggleBookmark(work, event) {
+  if (event) event.stopPropagation()
+  bookmarkStore.toggleBookmark(bookmarkItem(work))
+}
+
+const watchProviders = computed(() => {
+  if (!mediaDetail.value?.watch_providers) return null
+  const providers = mediaDetail.value.watch_providers
+  // Try user's locale, then fall back to US
+  const locale = navigator.language?.split('-').pop()?.toUpperCase() || 'US'
+  return providers[locale] || providers['US'] || null
+})
 
 // Cross-modal navigation: another component requests opening a media modal
 watch(openMediaRequest, (req) => {
@@ -171,6 +196,14 @@ watch(openPersonRequest, () => {
           >
             {{ work.media_type === 'tv' ? 'TV' : 'Film' }}
           </v-chip>
+          <v-btn
+            :class="['bookmark-btn', { 'is-bookmarked': bookmarkStore.isBookmarked(work.id, work.media_type) }]"
+            :icon="bookmarkStore.isBookmarked(work.id, work.media_type) ? 'mdi-bookmark' : 'mdi-bookmark-outline'"
+            size="x-small"
+            variant="flat"
+            :color="bookmarkStore.isBookmarked(work.id, work.media_type) ? 'primary' : 'surface'"
+            @click="toggleBookmark(work, $event)"
+          />
         </div>
         <div class="card-info pa-2">
           <span class="text-caption font-weight-medium card-title">{{ work.title }}</span>
@@ -190,14 +223,23 @@ watch(openPersonRequest, () => {
           <template v-else-if="mediaDetail">
             <!-- Backdrop / poster header -->
             <div class="modal-header" :style="mediaDetail.backdrop_path ? { backgroundImage: `linear-gradient(to bottom, transparent 30%, rgb(var(--v-theme-surface)) 100%), url(https://image.tmdb.org/t/p/w780${mediaDetail.backdrop_path})` } : {}">
-              <v-btn
-                icon="mdi-close"
-                variant="flat"
-                size="small"
-                color="surface"
-                class="modal-close-btn"
-                @click="showModal = false"
-              />
+
+              <div class="modal-top-btns">
+                <v-btn
+                  :icon="bookmarkStore.isBookmarked(mediaDetail?.id, mediaDetail?.media_type || 'movie') ? 'mdi-bookmark' : 'mdi-bookmark-outline'"
+                  variant="flat"
+                  size="small"
+                  :color="bookmarkStore.isBookmarked(mediaDetail?.id, mediaDetail?.media_type || 'movie') ? 'primary' : 'surface'"
+                  @click="toggleBookmark(mediaDetail)"
+                />
+                <v-btn
+                  icon="mdi-close"
+                  variant="flat"
+                  size="small"
+                  color="surface"
+                  @click="showModal = false"
+                />
+              </div>
               <div class="d-flex pa-4 pt-12 ga-4" style="position: relative;">
                 <v-img
                   v-if="posterUrl(mediaDetail, 'w185')"
@@ -229,6 +271,77 @@ watch(openPersonRequest, () => {
               <p v-if="mediaDetail.overview" class="text-body-2 mb-4" style="line-height: 1.5;">
                 {{ mediaDetail.overview }}
               </p>
+
+              <!-- Streaming providers -->
+              <div v-if="watchProviders" class="mb-4">
+                <p class="text-overline text-medium-emphasis mb-2">Where to watch</p>
+                <div v-if="watchProviders.flatrate?.length" class="mb-2">
+                  <span class="text-caption text-medium-emphasis d-block mb-1">Stream</span>
+                  <div class="d-flex flex-wrap ga-2">
+                    <a
+                      v-for="p in watchProviders.flatrate"
+                      :key="p.provider_id"
+                      :href="watchProviders.link"
+                      target="_blank"
+                      rel="noopener"
+                      class="provider-chip"
+                      :title="p.provider_name"
+                    >
+                      <img
+                        :src="`https://image.tmdb.org/t/p/w45${p.logo_path}`"
+                        :alt="p.provider_name"
+                        class="provider-logo"
+                      />
+                      <span class="text-caption">{{ p.provider_name }}</span>
+                    </a>
+                  </div>
+                </div>
+                <div v-if="watchProviders.rent?.length" class="mb-2">
+                  <span class="text-caption text-medium-emphasis d-block mb-1">Rent</span>
+                  <div class="d-flex flex-wrap ga-2">
+                    <a
+                      v-for="p in watchProviders.rent"
+                      :key="p.provider_id"
+                      :href="watchProviders.link"
+                      target="_blank"
+                      rel="noopener"
+                      class="provider-chip"
+                      :title="p.provider_name"
+                    >
+                      <img
+                        :src="`https://image.tmdb.org/t/p/w45${p.logo_path}`"
+                        :alt="p.provider_name"
+                        class="provider-logo"
+                      />
+                      <span class="text-caption">{{ p.provider_name }}</span>
+                    </a>
+                  </div>
+                </div>
+                <div v-if="watchProviders.buy?.length" class="mb-2">
+                  <span class="text-caption text-medium-emphasis d-block mb-1">Buy</span>
+                  <div class="d-flex flex-wrap ga-2">
+                    <a
+                      v-for="p in watchProviders.buy"
+                      :key="p.provider_id"
+                      :href="watchProviders.link"
+                      target="_blank"
+                      rel="noopener"
+                      class="provider-chip"
+                      :title="p.provider_name"
+                    >
+                      <img
+                        :src="`https://image.tmdb.org/t/p/w45${p.logo_path}`"
+                        :alt="p.provider_name"
+                        class="provider-logo"
+                      />
+                      <span class="text-caption">{{ p.provider_name }}</span>
+                    </a>
+                  </div>
+                </div>
+                <p class="text-caption text-medium-emphasis mt-1" style="font-size: 10px;">
+                  Streaming data by <a :href="watchProviders.link" target="_blank" rel="noopener" class="text-primary">JustWatch</a>
+                </p>
+              </div>
 
               <!-- Crew -->
               <div v-if="mediaDetail.top_crew?.length" class="mb-3">
@@ -357,6 +470,19 @@ watch(openPersonRequest, () => {
   opacity: 0.85;
 }
 
+.bookmark-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.result-card:hover .bookmark-btn,
+.bookmark-btn.is-bookmarked {
+  opacity: 1;
+}
+
 .card-info {
   display: flex;
   flex-direction: column;
@@ -370,12 +496,36 @@ watch(openPersonRequest, () => {
   line-height: 1.3;
 }
 
-.modal-close-btn {
+.modal-top-btns {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 2;
+  display: flex;
+  gap: 4px;
   opacity: 0.9;
+}
+
+.provider-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.2s;
+}
+
+.provider-chip:hover {
+  background: rgba(228, 163, 58, 0.15);
+}
+
+.provider-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
 }
 
 .modal-header {

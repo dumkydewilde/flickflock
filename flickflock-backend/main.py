@@ -1,10 +1,11 @@
 import os
 import logging
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from flickflock.tmdb import TMDB
 from flickflock.flock import Flock
+from flickflock.bookmarks import BookmarkList
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ app.add_middleware(
     allow_origin_regex=r"https://.*\.flickflock\.pages\.dev",
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 tmdb = TMDB(api_key=os.environ.get("TMDB_API_KEY"))
@@ -168,6 +170,63 @@ def update_flock(request_body: dict, flock_id: str | None = None):
         raise HTTPException(500, "Failed to update flock")
 
 
+# --- Bookmark routes ---
+
+@app.get("/api/bookmarks")
+def get_bookmarks(x_user_id: str = Header(None)):
+    """Get the current user's bookmark list."""
+    if not x_user_id:
+        raise HTTPException(400, "X-User-Id header required")
+    try:
+        bl = BookmarkList(user_id=x_user_id)
+        return bl.to_dict()
+    except Exception:
+        log.exception("Failed to get bookmarks for user %s", x_user_id)
+        raise HTTPException(500, "Failed to load bookmarks")
+
+
+@app.get("/api/bookmarks/{list_id}")
+def get_bookmark_list(list_id: str):
+    """Get a bookmark list by its public ID (for sharing)."""
+    try:
+        bl = BookmarkList(list_id=list_id)
+        return bl.to_dict()
+    except Exception:
+        log.exception("Failed to get bookmark list %s", list_id)
+        raise HTTPException(500, "Failed to load bookmark list")
+
+
+@app.post("/api/bookmarks")
+def add_bookmark(request_body: dict, x_user_id: str = Header(None)):
+    """Add an item to the user's bookmark list."""
+    if not x_user_id:
+        raise HTTPException(400, "X-User-Id header required")
+    item = request_body.get("item")
+    if not item or "id" not in item or "media_type" not in item:
+        raise HTTPException(400, "Request body must include 'item' with id and media_type")
+    try:
+        bl = BookmarkList(user_id=x_user_id)
+        bl.add(item)
+        return bl.to_dict()
+    except Exception:
+        log.exception("Failed to add bookmark for user %s", x_user_id)
+        raise HTTPException(500, "Failed to add bookmark")
+
+
+@app.delete("/api/bookmarks/{media_type}/{media_id}")
+def remove_bookmark(media_type: str, media_id: int, x_user_id: str = Header(None)):
+    """Remove an item from the user's bookmark list."""
+    if not x_user_id:
+        raise HTTPException(400, "X-User-Id header required")
+    try:
+        bl = BookmarkList(user_id=x_user_id)
+        bl.remove(media_id, media_type)
+        return bl.to_dict()
+    except Exception:
+        log.exception("Failed to remove bookmark for user %s", x_user_id)
+        raise HTTPException(500, "Failed to remove bookmark")
+
+
 # --- Generic media routes AFTER flock routes to avoid shadowing ---
 
 @app.get("/api/{media_type}/{content_id}/details")
@@ -180,7 +239,16 @@ def get_media_details(content_id: int, media_type: str):
         top_cast = credits.get("cast", [])[:8]
         top_crew = [c for c in credits.get("crew", [])
                     if c.get("job") in ("Director", "Writer", "Screenplay")]
-        return {**details, "top_cast": top_cast, "top_crew": top_crew}
+
+        # Fetch streaming/watch providers
+        watch_providers = {}
+        try:
+            wp_response = tmdb.get_watch_providers(media_type, content_id)
+            watch_providers = wp_response.get("results", {})
+        except Exception:
+            log.warning("Failed to fetch watch providers for %s/%d", media_type, content_id)
+
+        return {**details, "top_cast": top_cast, "top_crew": top_crew, "watch_providers": watch_providers}
     except Exception:
         log.exception("Failed to get details for %s/%d", media_type, content_id)
         raise HTTPException(404, "Content not found")
