@@ -71,8 +71,8 @@ function openWorkDetail(work) {
   setTimeout(() => openMedia(work), 200)
 }
 
-// TMDB TV genre IDs to exclude (talk shows, news) — same as backend
-const EXCLUDED_TV_GENRE_IDS = new Set([10767, 10763])
+// TMDB genre IDs to exclude (talk shows, news, documentaries, reality, soap) — same as backend
+const EXCLUDED_GENRE_IDS = new Set([10767, 10763, 99, 10764, 10766])
 
 const knownFor = computed(() => {
   if (!personDetail.value) return []
@@ -87,7 +87,7 @@ const knownFor = computed(() => {
       if (seen.has(w.id)) return false
       seen.add(w.id)
       const genres = w.genre_ids || []
-      if (genres.some(id => EXCLUDED_TV_GENRE_IDS.has(id))) return false
+      if (genres.some(id => EXCLUDED_GENRE_IDS.has(id))) return false
       return true
     })
     .slice(0, 6)
