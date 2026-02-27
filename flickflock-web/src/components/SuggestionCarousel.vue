@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import axios from 'axios'
 
+const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 const emit = defineEmits(['select'])
 
 const suggestions = [
@@ -183,8 +185,23 @@ function onKeyDown(e) {
   else if (e.key === 'ArrowLeft') prevPage()
 }
 
+// Pre-warm the backend TMDB cache for all suggestion items
+function precacheSuggestions() {
+  const items = suggestions.flatMap(s => s.items)
+  items.forEach((item, i) => {
+    // Stagger requests to avoid hammering the backend
+    setTimeout(() => {
+      const url = item.media_type === 'person'
+        ? `${BASE_URL}/person/${item.id}`
+        : `${BASE_URL}/${item.media_type}/${item.id}/details`
+      axios.get(url).catch(() => {})
+    }, i * 200)
+  })
+}
+
 onMounted(() => {
   carouselEl.value?.addEventListener('keydown', onKeyDown)
+  precacheSuggestions()
 })
 
 onUnmounted(() => {
