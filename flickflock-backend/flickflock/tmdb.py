@@ -61,10 +61,10 @@ class TMDB:
         query_string = f"api_key={self.api_key}&{params}"
         request_url = f"{self.base_url}/{path}?{query_string}"
 
-        if self.cache and method == "GET":
+        if self.use_cache and method == "GET":
             request_id = xxhash.xxh3_64_hexdigest(request_url)
             res = self.get_cached_request(request_id)
-            if res == False:
+            if res is False:
                 res = requests.request(method, request_url).json()
                 self.tmdb_requests += 1
                 self.set_cached_request(request_id, res)

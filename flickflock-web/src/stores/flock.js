@@ -131,10 +131,16 @@ export const useFlockStore = defineStore('flock', () => {
     })
 
     flockLoading.value = true
+    flockWorksLoading.value = true
+
     try {
-      const res = await axios.get(`${BASE_URL}/flock/${flockId.value}/details`)
-      flock.value = res.data.flock
-      selection.value = res.data.selection
+      const [detailsRes, worksRes] = await Promise.all([
+        axios.get(`${BASE_URL}/flock/${flockId.value}/details`),
+        axios.get(`${BASE_URL}/flock/${flockId.value}/results`),
+      ])
+
+      flock.value = detailsRes.data.flock
+      selection.value = detailsRes.data.selection
       flockLoading.value = false
 
       trackStructEvent({
@@ -143,12 +149,19 @@ export const useFlockStore = defineStore('flock', () => {
         label: `flockId:${flockId.value}`,
       })
 
-      if (!flockWorksLoading.value) {
-        await fetchFlockWorks()
-      }
+      flockWorks.value = worksRes.data.flock_works
+      flockWorksLoading.value = false
+
+      trackStructEvent({
+        category: 'flock',
+        action: 'flockResultsLoaded',
+        label: `flockId:${flockId.value}`,
+        property: `selectionLength:${selection.value.length};flockLength:${Object.keys(flock.value).length};resultLength:${flockWorks.value.length}`,
+      })
     } catch (err) {
       console.error('fetchFlock error:', err)
       flockLoading.value = false
+      flockWorksLoading.value = false
     }
   }
 
