@@ -81,10 +81,29 @@ const suggestions = [
 const currentPage = ref(0)
 const totalPages = computed(() => Math.ceil(suggestions.length / 3))
 const carouselEl = ref(null)
+const trackEl = ref(null)
 
-const visibleSuggestions = computed(() => {
-  const start = currentPage.value * 3
-  return suggestions.slice(start, start + 3)
+// Pages as groups of 3
+const pages = computed(() => {
+  const result = []
+  for (let i = 0; i < suggestions.length; i += 3) {
+    result.push(suggestions.slice(i, i + 3))
+  }
+  return result
+})
+
+// Drag state
+const dragOffset = ref(0)
+const isDragging = ref(false)
+let touchStartX = 0
+let touchStartY = 0
+let touchStartTime = 0
+let directionLocked = false
+let isHorizontal = false
+
+const trackTransform = computed(() => {
+  const pageOffset = currentPage.value * 100
+  return `translateX(calc(-${pageOffset}% + ${dragOffset.value}px))`
 })
 
 function goToPage(page) {
@@ -92,36 +111,70 @@ function goToPage(page) {
 }
 
 function nextPage() {
-  currentPage.value = (currentPage.value + 1) % totalPages.value
+  currentPage.value = Math.min(currentPage.value + 1, totalPages.value - 1)
 }
 
 function prevPage() {
-  currentPage.value = (currentPage.value - 1 + totalPages.value) % totalPages.value
+  currentPage.value = Math.max(currentPage.value - 1, 0)
 }
-
-// Swipe handling
-let touchStartX = 0
-let touchStartY = 0
-let swiping = false
 
 function onTouchStart(e) {
   touchStartX = e.touches[0].clientX
   touchStartY = e.touches[0].clientY
-  swiping = true
+  touchStartTime = Date.now()
+  directionLocked = false
+  isHorizontal = false
+  isDragging.value = true
+  dragOffset.value = 0
 }
 
-function onTouchEnd(e) {
-  if (!swiping) return
-  swiping = false
+function onTouchMove(e) {
+  if (!isDragging.value) return
 
-  const dx = e.changedTouches[0].clientX - touchStartX
-  const dy = e.changedTouches[0].clientY - touchStartY
+  const dx = e.touches[0].clientX - touchStartX
+  const dy = e.touches[0].clientY - touchStartY
 
-  // Only trigger if horizontal swipe is dominant and long enough
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+  // Lock direction after a small movement
+  if (!directionLocked && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+    directionLocked = true
+    isHorizontal = Math.abs(dx) > Math.abs(dy)
+  }
+
+  if (!directionLocked || !isHorizontal) return
+
+  // Prevent vertical scroll while swiping horizontally
+  e.preventDefault()
+
+  // Apply resistance at edges
+  let offset = dx
+  if ((currentPage.value === 0 && dx > 0) ||
+      (currentPage.value === totalPages.value - 1 && dx < 0)) {
+    offset = dx * 0.3
+  }
+
+  dragOffset.value = offset
+}
+
+function onTouchEnd() {
+  if (!isDragging.value) return
+  isDragging.value = false
+
+  if (!isHorizontal) {
+    dragOffset.value = 0
+    return
+  }
+
+  const dx = dragOffset.value
+  const elapsed = Date.now() - touchStartTime
+  const velocity = Math.abs(dx) / elapsed
+
+  // Snap to next/prev if dragged far enough or fast enough
+  if (Math.abs(dx) > 60 || velocity > 0.4) {
     if (dx < 0) nextPage()
     else prevPage()
   }
+
+  dragOffset.value = 0
 }
 
 // Keyboard navigation
@@ -150,46 +203,60 @@ function tmdbImage(item) {
     class="suggestion-carousel"
     tabindex="0"
     @touchstart.passive="onTouchStart"
+    @touchmove="onTouchMove"
     @touchend.passive="onTouchEnd"
   >
-    <div class="suggestions-grid">
+    <div class="carousel-viewport">
       <div
-        v-for="suggestion in visibleSuggestions"
-        :key="suggestion.label"
-        class="suggestion-item"
-        @click="$emit('select', suggestion)"
+        ref="trackEl"
+        class="carousel-track"
+        :class="{ snapping: !isDragging }"
+        :style="{ transform: trackTransform }"
       >
-        <div class="poster-pair">
-          <div class="poster poster-1">
-            <v-img
-              :src="tmdbImage(suggestion.items[0])"
-              cover
-              :aspect-ratio="2/3"
-            >
-              <template #placeholder>
-                <div class="poster-placeholder">
-                  <v-icon :icon="suggestion.items[0].media_type === 'person' ? 'mdi-account' : 'mdi-movie'" size="28" />
-                </div>
-              </template>
-            </v-img>
-          </div>
-          <div class="poster-plus">+</div>
-          <div class="poster poster-2">
-            <v-img
-              :src="tmdbImage(suggestion.items[1])"
-              cover
-              :aspect-ratio="2/3"
-            >
-              <template #placeholder>
-                <div class="poster-placeholder">
-                  <v-icon :icon="suggestion.items[1].media_type === 'person' ? 'mdi-account' : 'mdi-movie'" size="28" />
-                </div>
-              </template>
-            </v-img>
+        <div
+          v-for="(page, pageIndex) in pages"
+          :key="pageIndex"
+          class="carousel-page"
+        >
+          <div
+            v-for="suggestion in page"
+            :key="suggestion.label"
+            class="suggestion-item"
+            @click="$emit('select', suggestion)"
+          >
+            <div class="poster-pair">
+              <div class="poster poster-1">
+                <v-img
+                  :src="tmdbImage(suggestion.items[0])"
+                  cover
+                  :aspect-ratio="2/3"
+                >
+                  <template #placeholder>
+                    <div class="poster-placeholder">
+                      <v-icon :icon="suggestion.items[0].media_type === 'person' ? 'mdi-account' : 'mdi-movie'" size="28" />
+                    </div>
+                  </template>
+                </v-img>
+              </div>
+              <div class="poster-plus">+</div>
+              <div class="poster poster-2">
+                <v-img
+                  :src="tmdbImage(suggestion.items[1])"
+                  cover
+                  :aspect-ratio="2/3"
+                >
+                  <template #placeholder>
+                    <div class="poster-placeholder">
+                      <v-icon :icon="suggestion.items[1].media_type === 'person' ? 'mdi-account' : 'mdi-movie'" size="28" />
+                    </div>
+                  </template>
+                </v-img>
+              </div>
+            </div>
+            <div class="suggestion-label text-body-2 font-weight-medium mt-3">{{ suggestion.label }}</div>
+            <div class="suggestion-tagline text-caption text-medium-emphasis">{{ suggestion.tagline }}</div>
           </div>
         </div>
-        <div class="suggestion-label text-body-2 font-weight-medium mt-2">{{ suggestion.label }}</div>
-        <div class="suggestion-tagline text-caption text-medium-emphasis">{{ suggestion.tagline }}</div>
       </div>
     </div>
 
@@ -212,22 +279,31 @@ function tmdbImage(item) {
 .suggestion-carousel {
   outline: none;
   user-select: none;
-  touch-action: pan-y;
 }
 
-.suggestions-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  max-width: 640px;
+.carousel-viewport {
+  overflow: hidden;
+  max-width: 700px;
   margin: 0 auto;
 }
 
-@media (max-width: 600px) {
-  .suggestions-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
+.carousel-track {
+  display: flex;
+  will-change: transform;
+}
+
+.carousel-track.snapping {
+  transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.carousel-page {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  flex: 0 0 100%;
+  min-width: 100%;
+  padding: 0 8px;
+  box-sizing: border-box;
 }
 
 .suggestion-item {
@@ -244,7 +320,6 @@ function tmdbImage(item) {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0;
 }
 
 .poster {
@@ -252,22 +327,29 @@ function tmdbImage(item) {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  transition: transform 0.15s ease;
+}
+
+.poster-1 {
+  transform: rotate(-3deg);
+}
+
+.poster-2 {
+  transform: rotate(3deg);
 }
 
 .suggestion-item:hover .poster-1 {
-  transform: rotate(-2deg);
+  transform: rotate(-5deg);
 }
 
 .suggestion-item:hover .poster-2 {
-  transform: rotate(2deg);
+  transform: rotate(5deg);
 }
 
 .poster-plus {
   font-size: 16px;
   font-weight: 600;
   color: rgba(228, 163, 58, 0.7);
-  margin: 0 4px;
+  margin: 0 6px;
   flex-shrink: 0;
 }
 
@@ -319,13 +401,17 @@ function tmdbImage(item) {
 }
 
 @media (max-width: 600px) {
+  .carousel-page {
+    gap: 16px;
+  }
+
   .poster {
     width: 60px;
   }
 
   .poster-plus {
     font-size: 14px;
-    margin: 0 2px;
+    margin: 0 3px;
   }
 }
 </style>
