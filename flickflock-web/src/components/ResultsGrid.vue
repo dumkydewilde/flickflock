@@ -95,7 +95,10 @@ function bookmarkItem(work) {
 }
 
 function toggleBookmark(work, event) {
-  if (event) event.stopPropagation()
+  if (event) {
+    event.stopPropagation()
+    event.preventDefault()
+  }
   bookmarkStore.toggleBookmark(bookmarkItem(work))
 }
 

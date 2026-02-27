@@ -1,6 +1,7 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useDisplay } from 'vuetify'
+import { useRoute } from 'vue-router'
 import { enableActivityTracking } from '@snowplow/browser-tracker'
 import { useFlockStore } from './stores/flock'
 import { useBookmarkStore } from './stores/bookmarks'
@@ -10,8 +11,11 @@ import FlockMembers from './components/FlockMembers.vue'
 import ResultsGrid from './components/ResultsGrid.vue'
 
 const { mdAndUp } = useDisplay()
+const route = useRoute()
 const store = useFlockStore()
 const bookmarkStore = useBookmarkStore()
+
+const isHome = computed(() => route.name === 'home')
 
 function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -80,7 +84,8 @@ onMounted(() => {
     </v-app-bar>
 
     <v-main>
-      <v-container fluid class="pa-4">
+      <!-- Home page content -->
+      <v-container v-if="isHome" fluid class="pa-4">
         <!-- Search bar -->
         <div class="search-wrapper mb-6" style="position: relative;">
           <Search />
@@ -158,6 +163,9 @@ onMounted(() => {
           </v-row>
         </template>
       </v-container>
+
+      <!-- Other routes (bookmarks, etc.) -->
+      <router-view v-if="!isHome" />
     </v-main>
 
     <!-- Mobile bottom nav -->
