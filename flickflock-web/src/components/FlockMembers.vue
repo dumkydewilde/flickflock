@@ -71,18 +71,23 @@ function openWorkDetail(work) {
   setTimeout(() => openMedia(work), 200)
 }
 
+// TMDB TV genre IDs to exclude (talk shows, news) — same as backend
+const EXCLUDED_TV_GENRE_IDS = new Set([10767, 10763])
+
 const knownFor = computed(() => {
   if (!personDetail.value) return []
   const cast = personDetail.value.cast || []
   const crew = personDetail.value.crew || []
   const all = [...cast, ...crew]
-  // Deduplicate by id and take top 6 by popularity
+  // Deduplicate by id, skip talk/news shows, and take top 6 by popularity
   const seen = new Set()
   return all
     .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
     .filter(w => {
       if (seen.has(w.id)) return false
       seen.add(w.id)
+      const genres = w.genre_ids || []
+      if (genres.some(id => EXCLUDED_TV_GENRE_IDS.has(id))) return false
       return true
     })
     .slice(0, 6)
