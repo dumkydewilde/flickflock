@@ -1,6 +1,7 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useDisplay } from 'vuetify'
+import { useRoute } from 'vue-router'
 import { enableActivityTracking } from '@snowplow/browser-tracker'
 import { useFlockStore } from './stores/flock'
 import { useBookmarkStore } from './stores/bookmarks'
@@ -11,8 +12,11 @@ import FlockMembers from './components/FlockMembers.vue'
 import ResultsGrid from './components/ResultsGrid.vue'
 
 const { mdAndUp } = useDisplay()
+const route = useRoute()
 const store = useFlockStore()
 const bookmarkStore = useBookmarkStore()
+
+const isHome = computed(() => route.name === 'home')
 
 function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -37,40 +41,46 @@ onMounted(() => {
 <template>
   <v-app id="flickflock">
     <!-- Top bar -->
-    <v-app-bar flat color="background" class="px-3" density="comfortable">
+    <v-app-bar flat color="background" class="px-3" density="comfortable" :extension-height="40">
       <v-app-bar-title>
-        <span class="text-primary font-weight-bold">Flick</span><span class="font-weight-light">Flock</span>
+        <router-link to="/" style="text-decoration: none; color: inherit;">
+          <span class="text-primary font-weight-bold">Flick</span><span class="font-weight-light">Flock</span>
+        </router-link>
       </v-app-bar-title>
-      <v-spacer />
-      <v-btn
-        v-if="store.flockId"
-        variant="text"
-        size="small"
-        prepend-icon="mdi-share-variant"
-        @click="store.copyShareUrl()"
-      >
-        Share
-      </v-btn>
-      <v-btn
-        variant="text"
-        size="small"
-        prepend-icon="mdi-bookmark-multiple-outline"
-        to="/bookmarks"
-      >
-        Bookmarks
-        <v-badge
-          v-if="bookmarkStore.items.length"
-          :content="bookmarkStore.items.length"
-          color="primary"
-          inline
-          class="ml-1"
-        />
-      </v-btn>
-      <v-btn variant="tonal" size="small" prepend-icon="mdi-bird" href="/">New</v-btn>
+
+      <template #extension>
+        <v-btn v-if="!isHome" icon="mdi-arrow-left" variant="text" size="small" to="/" />
+        <v-btn
+          v-if="store.flockId"
+          variant="text"
+          size="small"
+          prepend-icon="mdi-share-variant"
+          @click="store.copyShareUrl()"
+        >
+          Share
+        </v-btn>
+        <v-btn
+          variant="text"
+          size="small"
+          prepend-icon="mdi-bookmark-multiple-outline"
+          to="/bookmarks"
+        >
+          Bookmarks
+          <v-badge
+            v-if="bookmarkStore.items.length"
+            :content="bookmarkStore.items.length"
+            color="primary"
+            inline
+            class="ml-1"
+          />
+        </v-btn>
+        <v-btn variant="tonal" size="small" prepend-icon="mdi-bird" href="/">New</v-btn>
+      </template>
     </v-app-bar>
 
     <v-main>
-      <v-container fluid class="pa-4">
+      <!-- Home page content -->
+      <v-container v-if="isHome" fluid class="pa-4">
         <!-- Search bar -->
         <div class="search-wrapper mb-6" style="position: relative;">
           <Search />
@@ -138,6 +148,9 @@ onMounted(() => {
           </v-row>
         </template>
       </v-container>
+
+      <!-- Other routes (bookmarks, etc.) -->
+      <router-view v-if="!isHome" />
     </v-main>
 
     <!-- Mobile bottom nav -->

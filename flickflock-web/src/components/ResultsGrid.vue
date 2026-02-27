@@ -33,13 +33,7 @@ function releaseYear(item) {
   return date ? date.slice(0, 4) : ''
 }
 
-function tmdbUrl(item) {
-  const type = item.media_type || 'movie'
-  return `https://www.themoviedb.org/${type}/${item.id}`
-}
-
-async function openMediaModal(work, event) {
-  if (event) event.preventDefault()
+async function openMediaModal(work) {
   mediaDetail.value = null
   showModal.value = true
   modalLoading.value = true
@@ -95,7 +89,10 @@ function bookmarkItem(work) {
 }
 
 function toggleBookmark(work, event) {
-  if (event) event.stopPropagation()
+  if (event) {
+    event.stopPropagation()
+    event.preventDefault()
+  }
   bookmarkStore.toggleBookmark(bookmarkItem(work))
 }
 
@@ -159,14 +156,11 @@ watch(openPersonRequest, () => {
 
     <!-- Results grid -->
     <div class="results-grid" v-else>
-      <a
+      <div
         v-for="work in store.filteredFlockWorks"
         :key="work.id"
-        :href="tmdbUrl(work)"
-        target="_blank"
-        rel="noopener"
-        class="result-card text-decoration-none"
-        @click="openMediaModal(work, $event)"
+        class="result-card"
+        @click="openMediaModal(work)"
       >
         <div class="poster-wrapper">
           <v-img
@@ -209,7 +203,7 @@ watch(openPersonRequest, () => {
           <span class="text-caption font-weight-medium card-title">{{ work.title }}</span>
           <span class="text-caption text-medium-emphasis">{{ releaseYear(work) }}</span>
         </div>
-      </a>
+      </div>
     </div>
 
     <!-- Media detail modal -->
@@ -391,16 +385,6 @@ watch(openPersonRequest, () => {
         </v-card-text>
 
         <v-card-actions class="pa-4 pt-0">
-          <v-btn
-            v-if="mediaDetail"
-            variant="text"
-            :href="tmdbUrl(mediaDetail)"
-            target="_blank"
-            size="small"
-          >
-            TMDB
-            <v-icon end icon="mdi-open-in-new" size="14" />
-          </v-btn>
           <v-spacer />
           <v-btn variant="text" @click="showModal = false">Close</v-btn>
         </v-card-actions>
@@ -433,6 +417,7 @@ watch(openPersonRequest, () => {
   background: rgba(43, 33, 49, 0.6);
   transition: transform 0.2s, box-shadow 0.2s;
   color: inherit;
+  cursor: pointer;
 }
 
 .result-card:hover {
@@ -474,13 +459,18 @@ watch(openPersonRequest, () => {
   position: absolute;
   bottom: 6px;
   right: 6px;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.2s;
 }
 
-.result-card:hover .bookmark-btn,
-.bookmark-btn.is-bookmarked {
-  opacity: 1;
+@media (hover: hover) {
+  .bookmark-btn:not(.is-bookmarked) {
+    opacity: 0;
+  }
+
+  .result-card:hover .bookmark-btn {
+    opacity: 1;
+  }
 }
 
 .card-info {
