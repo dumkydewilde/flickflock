@@ -69,7 +69,7 @@ onMounted(() => {
         </div>
 
         <!-- Onboarding (before any selections) -->
-        <div v-if="store.selection.length === 0" class="onboarding text-center pa-8">
+        <div v-if="store.selection.length === 0 && !store.flockLoading && !store.flockId" class="onboarding text-center pa-8">
           <v-icon icon="mdi-bird" size="64" color="primary" class="mb-4" />
           <h2 class="text-h5 mb-2">Discover your next watch</h2>
           <p class="text-body-1 text-medium-emphasis mb-6" style="max-width: 480px; margin: 0 auto;">
