@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { trackPageView, trackSelfDescribingEvent } from "@snowplow/browser-tracker"
 import HomeView from '../views/HomeView.vue'
+import BookmarksView from '../views/BookmarksView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,7 +13,23 @@ const router = createRouter({
       meta: {
         title: 'FlickFlock | Discover Movies'
       }
-    }
+    },
+    {
+      path: '/bookmarks',
+      name: 'my-bookmarks',
+      component: BookmarksView,
+      meta: {
+        title: 'FlickFlock | My Bookmarks'
+      }
+    },
+    {
+      path: '/bookmarks/:listId',
+      name: 'shared-bookmarks',
+      component: BookmarksView,
+      meta: {
+        title: 'FlickFlock | Bookmarks'
+      }
+    },
   ]
 })
 
