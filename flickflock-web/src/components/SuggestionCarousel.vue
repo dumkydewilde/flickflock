@@ -302,7 +302,6 @@ function tmdbImage(item) {
   gap: 32px;
   flex: 0 0 100%;
   min-width: 100%;
-  padding: 0 8px;
   box-sizing: border-box;
   overflow: hidden;
 }
