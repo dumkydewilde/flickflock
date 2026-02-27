@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const emit = defineEmits(['select'])
 
@@ -80,65 +80,128 @@ const suggestions = [
 
 const currentPage = ref(0)
 const totalPages = computed(() => Math.ceil(suggestions.length / 3))
+const carouselEl = ref(null)
 
 const visibleSuggestions = computed(() => {
   const start = currentPage.value * 3
   return suggestions.slice(start, start + 3)
 })
 
+function goToPage(page) {
+  currentPage.value = page
+}
+
 function nextPage() {
   currentPage.value = (currentPage.value + 1) % totalPages.value
 }
 
+function prevPage() {
+  currentPage.value = (currentPage.value - 1 + totalPages.value) % totalPages.value
+}
+
+// Swipe handling
+let touchStartX = 0
+let touchStartY = 0
+let swiping = false
+
+function onTouchStart(e) {
+  touchStartX = e.touches[0].clientX
+  touchStartY = e.touches[0].clientY
+  swiping = true
+}
+
+function onTouchEnd(e) {
+  if (!swiping) return
+  swiping = false
+
+  const dx = e.changedTouches[0].clientX - touchStartX
+  const dy = e.changedTouches[0].clientY - touchStartY
+
+  // Only trigger if horizontal swipe is dominant and long enough
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+    if (dx < 0) nextPage()
+    else prevPage()
+  }
+}
+
+// Keyboard navigation
+function onKeyDown(e) {
+  if (e.key === 'ArrowRight') nextPage()
+  else if (e.key === 'ArrowLeft') prevPage()
+}
+
+onMounted(() => {
+  carouselEl.value?.addEventListener('keydown', onKeyDown)
+})
+
+onUnmounted(() => {
+  carouselEl.value?.removeEventListener('keydown', onKeyDown)
+})
+
 function tmdbImage(item) {
   const path = item.profile_path || item.poster_path
-  return path ? `https://image.tmdb.org/t/p/w185${path}` : null
+  return path ? `https://image.tmdb.org/t/p/w342${path}` : null
 }
 </script>
 
 <template>
-  <div class="suggestion-carousel">
-    <TransitionGroup name="suggestions" tag="div" class="suggestions-grid">
-      <v-card
+  <div
+    ref="carouselEl"
+    class="suggestion-carousel"
+    tabindex="0"
+    @touchstart.passive="onTouchStart"
+    @touchend.passive="onTouchEnd"
+  >
+    <div class="suggestions-grid">
+      <div
         v-for="suggestion in visibleSuggestions"
         :key="suggestion.label"
-        class="suggestion-card"
-        variant="tonal"
-        color="surface"
-        hover
+        class="suggestion-item"
         @click="$emit('select', suggestion)"
       >
-        <div class="suggestion-images">
-          <v-avatar size="56" rounded="lg" class="suggestion-img suggestion-img-1">
-            <v-img :src="tmdbImage(suggestion.items[0])" cover />
-          </v-avatar>
-          <v-avatar size="56" rounded="lg" class="suggestion-img suggestion-img-2">
-            <v-img :src="tmdbImage(suggestion.items[1])" cover />
-          </v-avatar>
+        <div class="poster-pair">
+          <div class="poster poster-1">
+            <v-img
+              :src="tmdbImage(suggestion.items[0])"
+              cover
+              :aspect-ratio="2/3"
+            >
+              <template #placeholder>
+                <div class="poster-placeholder">
+                  <v-icon :icon="suggestion.items[0].media_type === 'person' ? 'mdi-account' : 'mdi-movie'" size="28" />
+                </div>
+              </template>
+            </v-img>
+          </div>
+          <div class="poster-plus">+</div>
+          <div class="poster poster-2">
+            <v-img
+              :src="tmdbImage(suggestion.items[1])"
+              cover
+              :aspect-ratio="2/3"
+            >
+              <template #placeholder>
+                <div class="poster-placeholder">
+                  <v-icon :icon="suggestion.items[1].media_type === 'person' ? 'mdi-account' : 'mdi-movie'" size="28" />
+                </div>
+              </template>
+            </v-img>
+          </div>
         </div>
-        <div class="suggestion-text">
-          <div class="text-body-2 font-weight-medium">{{ suggestion.label }}</div>
-          <div class="text-caption text-medium-emphasis">{{ suggestion.tagline }}</div>
-        </div>
-      </v-card>
-    </TransitionGroup>
+        <div class="suggestion-label text-body-2 font-weight-medium mt-2">{{ suggestion.label }}</div>
+        <div class="suggestion-tagline text-caption text-medium-emphasis">{{ suggestion.tagline }}</div>
+      </div>
+    </div>
 
-    <div class="text-center mt-4">
-      <v-btn
-        variant="text"
-        size="small"
-        color="primary"
-        prepend-icon="mdi-shuffle-variant"
-        @click="nextPage"
-      >
-        Show me more
-      </v-btn>
-      <div class="page-dots mt-1">
-        <span
+    <div class="carousel-controls mt-5">
+      <div class="page-dots">
+        <button
           v-for="page in totalPages"
           :key="page"
           class="dot"
           :class="{ active: page - 1 === currentPage }"
+          :aria-label="`Go to page ${page}`"
+          @click="goToPage(page - 1)"
         />
       </div>
     </div>
@@ -146,79 +209,123 @@ function tmdbImage(item) {
 </template>
 
 <style scoped>
+.suggestion-carousel {
+  outline: none;
+  user-select: none;
+  touch-action: pan-y;
+}
+
 .suggestions-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 24px;
   max-width: 640px;
   margin: 0 auto;
 }
 
 @media (max-width: 600px) {
   .suggestions-grid {
-    grid-template-columns: 1fr;
-    max-width: 320px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
   }
 }
 
-.suggestion-card {
+.suggestion-item {
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px 12px 12px;
   text-align: center;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease;
 }
 
-.suggestion-card:hover {
-  transform: translateY(-2px);
+.suggestion-item:hover {
+  transform: translateY(-3px);
 }
 
-.suggestion-images {
+.poster-pair {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 10px;
+  gap: 0;
 }
 
-.suggestion-img {
-  border: 2px solid rgba(228, 163, 58, 0.3);
+.poster {
+  width: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
 }
 
-.suggestion-img-2 {
-  margin-left: -12px;
+.suggestion-item:hover .poster-1 {
+  transform: rotate(-2deg);
 }
 
-.suggestion-text {
+.suggestion-item:hover .poster-2 {
+  transform: rotate(2deg);
+}
+
+.poster-plus {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(228, 163, 58, 0.7);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.poster-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.suggestion-label {
   line-height: 1.3;
+}
+
+.suggestion-tagline {
+  line-height: 1.3;
+}
+
+.carousel-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .page-dots {
   display: flex;
-  justify-content: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  border: none;
+  padding: 0;
   background: rgba(255, 255, 255, 0.2);
-  transition: background 0.2s ease;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(1.3);
 }
 
 .dot.active {
   background: #E4A33A;
 }
 
-.suggestions-enter-active,
-.suggestions-leave-active {
-  transition: opacity 0.2s ease;
-}
+@media (max-width: 600px) {
+  .poster {
+    width: 60px;
+  }
 
-.suggestions-enter-from,
-.suggestions-leave-to {
-  opacity: 0;
+  .poster-plus {
+    font-size: 14px;
+    margin: 0 2px;
+  }
 }
 </style>
