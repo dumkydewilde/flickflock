@@ -92,25 +92,30 @@ def flock_results(flock_id: str):
         # Collect all unique member IDs first, then batch-fetch details
         all_member_ids = set()
         for w in works[:50]:
-            all_member_ids.update(w.get("connected_member_ids", []))
+            for entry in w.get("connected_member_ids", []):
+                all_member_ids.add(entry["id"])
         member_details = {}
         for pid in all_member_ids:
             try:
                 details = tmdb.get_person_by_id(pid)  # cached from flock load
                 member_details[pid] = {
-                    "id": pid,
                     "name": details.get("name", ""),
                     "profile_path": details.get("profile_path"),
-                    "known_for_department": details.get("known_for_department", ""),
                 }
             except Exception:
                 pass
         for w in works[:50]:
-            w["connected_members"] = [
-                member_details[pid]
-                for pid in w.get("connected_member_ids", [])
-                if pid in member_details
-            ]
+            connected = []
+            for entry in w.get("connected_member_ids", []):
+                pid = entry["id"]
+                if pid in member_details:
+                    connected.append({
+                        "id": pid,
+                        "name": member_details[pid]["name"],
+                        "profile_path": member_details[pid]["profile_path"],
+                        "role": entry.get("role", ""),
+                    })
+            w["connected_members"] = connected
             w.pop("connected_member_ids", None)
 
         return {
@@ -342,8 +347,10 @@ def tmdb_movies_from_person(id):
         if set(i.get("genre_ids", [])) & excluded:
             continue
         name_key = "title" if "title" in i else "name"
+        role = i.get("job") or i.get("character") or ""
         results.append({
             "title": i[name_key],
+            "_role": role,
             **{k: i.get(k, "") for k in keys},
         })
     return results

@@ -299,7 +299,7 @@ watch(openPersonRequest, () => {
                     </v-avatar>
                     <div class="connected-info">
                       <span class="text-caption font-weight-medium">{{ member.name }}</span>
-                      <span class="text-caption text-medium-emphasis">{{ member.known_for_department }}</span>
+                      <span class="text-caption text-medium-emphasis">{{ member.role }}</span>
                     </div>
                   </div>
                 </div>
