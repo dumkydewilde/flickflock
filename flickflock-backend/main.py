@@ -76,7 +76,7 @@ def flock_results(flock_id: str):
         raise HTTPException(400, "Invalid Flock ID")
     try:
         f = Flock(flock_id=flock_id)
-        works = f.get_flock_works(tmdb_movies_from_person, most_common=10)
+        works = f.get_flock_works(tmdb_movies_from_person, most_common=20)
 
         # Filter out low-quality entries: no overview or very few votes
         works = [
@@ -203,7 +203,9 @@ def update_flock(request_body: dict, flock_id: str | None = None):
                     source_type="person_transitive",
                 )
             elif media_type in ("movie", "tv"):
-                people = tmdb.get_people_by_media_id(item["id"], media_type)
+                people = tmdb.get_people_by_media_id_filtered(
+                    item["id"], media_type, max_cast=20
+                )
                 f.add_to_flock(
                     people,
                     primary_id=item["id"],
