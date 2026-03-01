@@ -1,3 +1,4 @@
+import math
 import os
 import logging
 from fastapi import FastAPI, Header, HTTPException, Query, Request
@@ -6,6 +7,7 @@ from fastapi.responses import JSONResponse
 from flickflock.tmdb import TMDB
 from flickflock.flock import Flock
 from flickflock.bookmarks import BookmarkList
+from flickflock.omdb import OMDb
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ app.add_middleware(
 )
 
 tmdb = TMDB(api_key=os.environ.get("TMDB_API_KEY"))
+omdb = OMDb(api_key=os.environ.get("OMDB_API_KEY", "c215031e"))
 
 
 @app.get("/api/search")
@@ -74,6 +77,42 @@ def flock_results(flock_id: str):
     try:
         f = Flock(flock_id=flock_id)
         works = f.get_flock_works(tmdb_movies_from_person, most_common=10)
+
+        # Quality boost: gently re-rank using TMDB ratings
+        # A well-rated film (8+) gets up to ~1.0x, poorly rated (~4) gets ~0.82x
+        for w in works:
+            vote_avg = w.get("vote_average") or 0
+            vote_count = w.get("vote_count") or 0
+            if vote_count >= 10 and vote_avg > 0:
+                quality = vote_avg / 10.0  # normalize to 0..1
+                w["count"] = round(w["count"] * (0.7 + 0.3 * quality), 2)
+        works.sort(key=lambda x: x["count"], reverse=True)
+
+        # Enrich connected_member_ids with names/profile info for "why this" display
+        # Collect all unique member IDs first, then batch-fetch details
+        all_member_ids = set()
+        for w in works[:50]:
+            all_member_ids.update(w.get("connected_member_ids", []))
+        member_details = {}
+        for pid in all_member_ids:
+            try:
+                details = tmdb.get_person_by_id(pid)  # cached from flock load
+                member_details[pid] = {
+                    "id": pid,
+                    "name": details.get("name", ""),
+                    "profile_path": details.get("profile_path"),
+                    "known_for_department": details.get("known_for_department", ""),
+                }
+            except Exception:
+                pass
+        for w in works[:50]:
+            w["connected_members"] = [
+                member_details[pid]
+                for pid in w.get("connected_member_ids", [])
+                if pid in member_details
+            ]
+            w.pop("connected_member_ids", None)
+
         return {
             "flock_id": f.flock_id,
             "selection": f.get_selection(),
@@ -248,7 +287,29 @@ def get_media_details(content_id: int, media_type: str):
         except Exception:
             log.warning("Failed to fetch watch providers for %s/%d", media_type, content_id)
 
-        return {**details, "top_cast": top_cast, "top_crew": top_crew, "watch_providers": watch_providers}
+        # For TV shows, fetch external IDs to get imdb_id (movies already have it in details)
+        imdb_id = details.get("imdb_id")
+        if not imdb_id and media_type == "tv":
+            try:
+                external_ids = tmdb.get_external_ids(media_type, content_id)
+                imdb_id = external_ids.get("imdb_id")
+            except Exception:
+                log.warning("Failed to fetch external IDs for %s/%d", media_type, content_id)
+
+        # Fetch OMDb data (IMDb rating + awards) if we have an IMDB ID
+        omdb_data = {}
+        if imdb_id:
+            try:
+                raw = omdb.get_by_imdb_id(imdb_id)
+                if raw:
+                    imdb_rating = raw.get("imdbRating")
+                    omdb_data["imdb_rating"] = float(imdb_rating) if imdb_rating and imdb_rating != "N/A" else None
+                    omdb_data["imdb_votes"] = raw.get("imdbVotes", "").replace(",", "") or None
+                    omdb_data["awards"] = OMDb.parse_awards(raw.get("Awards", ""))
+            except Exception:
+                log.warning("Failed to fetch OMDb data for %s", imdb_id)
+
+        return {**details, "imdb_id": imdb_id, **omdb_data, "top_cast": top_cast, "top_crew": top_crew, "watch_providers": watch_providers}
     except Exception:
         log.exception("Failed to get details for %s/%d", media_type, content_id)
         raise HTTPException(404, "Content not found")
@@ -272,7 +333,7 @@ def person_details_func(id):
 
 
 def tmdb_movies_from_person(id):
-    keys = ["id", "overview", "media_type", "poster_path", "popularity", "first_air_date", "release_date", "original_language"]
+    keys = ["id", "overview", "media_type", "poster_path", "popularity", "first_air_date", "release_date", "original_language", "vote_average", "vote_count"]
     excluded = TMDB.EXCLUDED_GENRE_IDS
     results = []
     person_details = tmdb.get_person_by_id(id)

@@ -127,6 +127,10 @@ class TMDB:
         """Get streaming/buy/rent providers for a movie or TV show."""
         return self.request(f"{media_type}/{id}/watch/providers")
 
+    def get_external_ids(self, media_type: str, id: int) -> dict:
+        """Get external IDs (IMDB, etc.) for a movie or TV show."""
+        return self.request(f"{media_type}/{id}/external_ids")
+
     def get_credits(self, media_type: str, id: int) -> list:
         return self.request(f"{media_type}/{id}/credits")
 

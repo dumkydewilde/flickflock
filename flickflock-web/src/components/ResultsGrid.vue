@@ -15,6 +15,7 @@ const { openMediaRequest, openPersonRequest, openPerson, openMedia } = useDetail
 const showModal = ref(false)
 const modalLoading = ref(false)
 const mediaDetail = ref(null)
+const selectedWork = ref(null)
 
 function posterUrl(item, size = 'w300') {
   return item.poster_path
@@ -34,6 +35,7 @@ function releaseYear(item) {
 }
 
 async function openMediaModal(work) {
+  selectedWork.value = work
   mediaDetail.value = null
   showModal.value = true
   modalLoading.value = true
@@ -248,14 +250,20 @@ watch(openPersonRequest, () => {
                   <div class="d-flex flex-wrap ga-2 align-center mb-2">
                     <span class="text-caption text-medium-emphasis">{{ releaseYear(mediaDetail) }}</span>
                     <span v-if="runtime" class="text-caption text-medium-emphasis">{{ runtime }}</span>
-                    <v-chip v-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary">
+                    <v-chip v-if="mediaDetail.imdb_rating" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
+                      {{ mediaDetail.imdb_rating }}
+                    </v-chip>
+                    <v-chip v-else-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary">
                       {{ mediaDetail.vote_average.toFixed(1) }}
                     </v-chip>
                   </div>
-                  <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1">
+                  <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1 mb-1">
                     <v-chip v-for="g in mediaDetail.genres.slice(0, 3)" :key="g.id" size="x-small" variant="outlined">
                       {{ g.name }}
                     </v-chip>
+                  </div>
+                  <div v-if="mediaDetail.awards?.text" class="text-caption text-medium-emphasis" style="line-height: 1.4;">
+                    {{ mediaDetail.awards.text }}
                   </div>
                 </div>
               </div>
@@ -265,6 +273,28 @@ watch(openPersonRequest, () => {
               <p v-if="mediaDetail.overview" class="text-body-2 mb-4" style="line-height: 1.5;">
                 {{ mediaDetail.overview }}
               </p>
+
+              <!-- Connected flock members ("Why this recommendation") -->
+              <div v-if="selectedWork?.connected_members?.length" class="mb-4">
+                <p class="text-overline text-medium-emphasis mb-2">Connected through your flock</p>
+                <div class="connected-members">
+                  <div
+                    v-for="member in selectedWork.connected_members"
+                    :key="member.id"
+                    class="connected-member"
+                    @click="openPersonDetail(member)"
+                  >
+                    <v-avatar :size="32" color="background">
+                      <v-img v-if="member.profile_path" :src="`https://image.tmdb.org/t/p/w92${member.profile_path}`" cover />
+                      <v-icon v-else icon="mdi-account" size="16" />
+                    </v-avatar>
+                    <div class="connected-info">
+                      <span class="text-caption font-weight-medium">{{ member.name }}</span>
+                      <span class="text-caption text-medium-emphasis">{{ member.known_for_department }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <!-- Streaming providers -->
               <div v-if="watchProviders" class="mb-4">
@@ -385,6 +415,16 @@ watch(openPersonRequest, () => {
         </v-card-text>
 
         <v-card-actions class="pa-4 pt-0">
+          <v-btn
+            v-if="mediaDetail?.imdb_id"
+            variant="text"
+            :href="`https://www.imdb.com/title/${mediaDetail.imdb_id}`"
+            target="_blank"
+            size="small"
+          >
+            IMDb
+            <v-icon end icon="mdi-open-in-new" size="14" />
+          </v-btn>
           <v-spacer />
           <v-btn variant="text" @click="showModal = false">Close</v-btn>
         </v-card-actions>
@@ -559,5 +599,32 @@ watch(openPersonRequest, () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.connected-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.connected-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.connected-member:hover {
+  background: rgba(228, 163, 58, 0.15);
+}
+
+.connected-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
 }
 </style>
