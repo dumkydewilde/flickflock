@@ -76,7 +76,7 @@ def flock_results(flock_id: str):
         raise HTTPException(400, "Invalid Flock ID")
     try:
         f = Flock(flock_id=flock_id)
-        works = f.get_flock_works(tmdb_movies_from_person, most_common=10)
+        works = f.get_flock_works(tmdb_movies_from_person, most_common=20)
 
         # Filter out low-quality entries: no overview or very few votes
         works = [
@@ -93,6 +93,16 @@ def flock_results(flock_id: str):
             if vote_count >= 10 and vote_avg > 0:
                 quality = vote_avg / 10.0  # normalize to 0..1
                 w["count"] = round(w["count"] * (0.7 + 0.3 * quality), 2)
+        # Animation penalty: voice roles in animated content are less relevant
+        ANIMATION_GENRE_ID = 16
+        for w in works:
+            genre_ids = w.get("_genre_ids") or []
+            if ANIMATION_GENRE_ID in genre_ids:
+                w["count"] = round(w["count"] * 0.5, 2)
+
+        for w in works:
+            w.pop("_genre_ids", None)
+
         works.sort(key=lambda x: x["count"], reverse=True)
 
         # Enrich connected_member_ids with names/profile info for "why this" display
@@ -203,7 +213,9 @@ def update_flock(request_body: dict, flock_id: str | None = None):
                     source_type="person_transitive",
                 )
             elif media_type in ("movie", "tv"):
-                people = tmdb.get_people_by_media_id(item["id"], media_type)
+                people = tmdb.get_people_by_media_id_filtered(
+                    item["id"], media_type, max_cast=20
+                )
                 f.add_to_flock(
                     people,
                     primary_id=item["id"],
@@ -346,7 +358,7 @@ def person_details_func(id):
 
 
 # Title patterns for awards ceremonies and similar non-recommendation content
-_EXCLUDED_TITLE_PATTERNS = {"the oscars", "academy awards", "oscar", "golden globes", "emmy awards", "grammy awards", "tony awards", "screen actors guild awards", "sag awards", "bafta"}
+_EXCLUDED_TITLE_PATTERNS = {"the oscars", "academy awards", "oscar", "golden globes", "emmy awards", "grammy awards", "tony awards", "screen actors guild awards", "sag awards", "bafta", "the best of", "saturday night live:"}
 
 
 def tmdb_movies_from_person(id):
@@ -378,6 +390,7 @@ def tmdb_movies_from_person(id):
         results.append({
             "title": title,
             "_role": role,
+            "_genre_ids": i.get("genre_ids", []),
             **{k: i.get(k, "") for k in keys},
         })
     return results
