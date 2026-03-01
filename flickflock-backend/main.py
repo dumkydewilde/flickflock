@@ -78,6 +78,13 @@ def flock_results(flock_id: str):
         f = Flock(flock_id=flock_id)
         works = f.get_flock_works(tmdb_movies_from_person, most_common=10)
 
+        # Filter out low-quality entries: no overview or very few votes
+        works = [
+            w for w in works
+            if len(w.get("overview") or "") >= 20
+            and (w.get("vote_count") or 0) >= 5
+        ]
+
         # Quality boost: gently re-rank using TMDB ratings
         # A well-rated film (8+) gets up to ~1.0x, poorly rated (~4) gets ~0.82x
         for w in works:
@@ -116,6 +123,7 @@ def flock_results(flock_id: str):
                         "role": entry.get("role", ""),
                     })
             w["connected_members"] = connected
+            w["member_count"] = len(connected)
             w.pop("connected_member_ids", None)
 
         return {
@@ -337,6 +345,10 @@ def person_details_func(id):
     return {k: details.get(k, "") for k in keys}
 
 
+# Title patterns for awards ceremonies and similar non-recommendation content
+_EXCLUDED_TITLE_PATTERNS = {"the oscars", "academy awards", "oscar", "golden globes", "emmy awards", "grammy awards", "tony awards", "screen actors guild awards", "sag awards", "bafta"}
+
+
 def tmdb_movies_from_person(id):
     keys = ["id", "overview", "media_type", "poster_path", "popularity", "first_air_date", "release_date", "original_language", "vote_average", "vote_count"]
     excluded = TMDB.EXCLUDED_GENRE_IDS
@@ -347,9 +359,24 @@ def tmdb_movies_from_person(id):
         if set(i.get("genre_ids", [])) & excluded:
             continue
         name_key = "title" if "title" in i else "name"
+        title = i.get(name_key, "")
+
+        # Skip awards ceremonies
+        title_lower = title.lower()
+        if any(pat in title_lower for pat in _EXCLUDED_TITLE_PATTERNS):
+            continue
+
+        # Skip works without a poster (obscure/unreleased)
+        if not i.get("poster_path"):
+            continue
+
+        # Skip works without a release date (future/untitled projects)
+        if not (i.get("release_date") or i.get("first_air_date")):
+            continue
+
         role = i.get("job") or i.get("character") or ""
         results.append({
-            "title": i[name_key],
+            "title": title,
             "_role": role,
             **{k: i.get(k, "") for k in keys},
         })

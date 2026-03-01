@@ -75,8 +75,8 @@ const allSuggestions = [
     label: '30 Rock + Andy Samberg',
     tagline: 'Comedy gold from NBC and beyond',
     items: [
-      { id: 4608, name: '30 Rock', media_type: 'tv', poster_path: '/k3RbNzPEPW0cmkFkn1xVCTk3Qde.jpg' },
-      { id: 154, name: 'Andy Samberg', media_type: 'person', profile_path: '/5MNbRsUzdhOHbiPYGosBUpsKYMR.jpg', known_for_department: 'Acting' },
+      { id: 4608, name: '30 Rock', media_type: 'tv', poster_path: '/eYYQWACx7ttUzRwTNYuo6zveqpE.jpg' },
+      { id: 62861, name: 'Andy Samberg', media_type: 'person', profile_path: '/jMXU5oG3i93SH1yhkpbBGskFiJl.jpg', known_for_department: 'Acting' },
     ],
   },
   // --- Nolan sci-fi ---
