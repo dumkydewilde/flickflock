@@ -244,6 +244,7 @@ watch(openPersonRequest, () => {
                 />
               </div>
               <div class="modal-backdrop-gradient"></div>
+              <div class="modal-backdrop-spacer"></div>
               <div class="modal-title-row">
                 <v-img
                   v-if="posterUrl(mediaDetail, 'w185')"
@@ -277,7 +278,7 @@ watch(openPersonRequest, () => {
               </div>
             </div>
 
-            <div class="px-4 pb-4">
+            <div class="px-4 pb-4" style="padding-top: 48px;">
               <p v-if="mediaDetail.overview" class="text-body-2 mb-4" style="line-height: 1.5;">
                 {{ mediaDetail.overview }}
               </p>
@@ -598,13 +599,9 @@ watch(openPersonRequest, () => {
 
 .modal-backdrop {
   position: relative;
-  min-height: 280px;
   background-size: cover;
   background-position: center top;
   background-color: rgba(21, 16, 24, 0.6);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
 }
 
 .modal-backdrop-gradient {
@@ -612,18 +609,22 @@ watch(openPersonRequest, () => {
   inset: 0;
   background: linear-gradient(
     to bottom,
-    transparent 20%,
-    rgba(var(--v-theme-surface), 0.6) 55%,
-    rgba(var(--v-theme-surface), 0.95) 80%,
+    transparent 25%,
+    rgba(var(--v-theme-surface), 0.55) 50%,
+    rgba(var(--v-theme-surface), 0.92) 75%,
     rgb(var(--v-theme-surface)) 100%
   );
   pointer-events: none;
 }
 
+.modal-backdrop-spacer {
+  height: 120px;
+}
+
 .modal-title-row {
   display: flex;
   gap: 16px;
-  padding: 12px 16px 16px;
+  padding: 0 16px 16px;
   position: relative;
   z-index: 1;
 }
@@ -631,11 +632,14 @@ watch(openPersonRequest, () => {
 .modal-poster {
   z-index: 1;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+  margin-bottom: -40px;
 }
 
 .modal-title-info {
-  padding-top: 4px;
+  padding-bottom: 4px;
   min-width: 0;
+  align-self: flex-end;
 }
 
 .cast-row {
