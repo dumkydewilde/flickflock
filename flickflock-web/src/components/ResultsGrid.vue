@@ -248,14 +248,20 @@ watch(openPersonRequest, () => {
                   <div class="d-flex flex-wrap ga-2 align-center mb-2">
                     <span class="text-caption text-medium-emphasis">{{ releaseYear(mediaDetail) }}</span>
                     <span v-if="runtime" class="text-caption text-medium-emphasis">{{ runtime }}</span>
-                    <v-chip v-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary">
+                    <v-chip v-if="mediaDetail.imdb_rating" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
+                      {{ mediaDetail.imdb_rating }}
+                    </v-chip>
+                    <v-chip v-else-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary">
                       {{ mediaDetail.vote_average.toFixed(1) }}
                     </v-chip>
                   </div>
-                  <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1">
+                  <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1 mb-1">
                     <v-chip v-for="g in mediaDetail.genres.slice(0, 3)" :key="g.id" size="x-small" variant="outlined">
                       {{ g.name }}
                     </v-chip>
+                  </div>
+                  <div v-if="mediaDetail.awards?.text" class="text-caption text-medium-emphasis" style="line-height: 1.4;">
+                    {{ mediaDetail.awards.text }}
                   </div>
                 </div>
               </div>
