@@ -88,6 +88,31 @@ def flock_results(flock_id: str):
                 w["count"] = round(w["count"] * (0.7 + 0.3 * quality), 2)
         works.sort(key=lambda x: x["count"], reverse=True)
 
+        # Enrich connected_member_ids with names/profile info for "why this" display
+        # Collect all unique member IDs first, then batch-fetch details
+        all_member_ids = set()
+        for w in works[:50]:
+            all_member_ids.update(w.get("connected_member_ids", []))
+        member_details = {}
+        for pid in all_member_ids:
+            try:
+                details = tmdb.get_person_by_id(pid)  # cached from flock load
+                member_details[pid] = {
+                    "id": pid,
+                    "name": details.get("name", ""),
+                    "profile_path": details.get("profile_path"),
+                    "known_for_department": details.get("known_for_department", ""),
+                }
+            except Exception:
+                pass
+        for w in works[:50]:
+            w["connected_members"] = [
+                member_details[pid]
+                for pid in w.get("connected_member_ids", [])
+                if pid in member_details
+            ]
+            w.pop("connected_member_ids", None)
+
         return {
             "flock_id": f.flock_id,
             "selection": f.get_selection(),

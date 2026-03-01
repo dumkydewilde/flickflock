@@ -232,11 +232,11 @@ class Flock:
             return {pid: round(score, 4) for pid, score in items}
 
     def get_flock_works(self, get_works_function, unique_work_key="id", most_common=None):
-        """Score works by distinct flock member collaboration with direct-selection boost."""
+        """Score works by weighted flock member collaboration with direct-selection boost."""
         flock_scores = self.get_flock(most_common=most_common)
 
         works_by_id = {}
-        works_members = defaultdict(set)
+        works_member_scores = defaultdict(dict)  # {work_id: {person_id: score}}
         works_direct_boost = defaultdict(float)
 
         selected_work_ids = set()
@@ -250,21 +250,29 @@ class Flock:
                 wid = w[unique_work_key]
                 if wid not in works_by_id:
                     works_by_id[wid] = w
-                works_members[wid].add(person_id)
+                works_member_scores[wid][person_id] = score
 
                 if person_id in self.direct_person_ids:
                     works_direct_boost[wid] += 0.5
 
         results = []
         for wid, work_data in works_by_id.items():
-            member_count = len(works_members[wid])
+            weighted_score = sum(works_member_scores[wid].values())
             direct_boost = works_direct_boost.get(wid, 0)
             penalty = 0.1 if wid in selected_work_ids else 1.0
 
-            score = (member_count + direct_boost) * penalty
+            score = (weighted_score + direct_boost) * penalty
+
+            # Top connected members sorted by their flock score
+            connected = sorted(
+                works_member_scores[wid].keys(),
+                key=lambda pid: works_member_scores[wid][pid],
+                reverse=True,
+            )
 
             results.append({
                 "count": round(score, 2),
+                "connected_member_ids": connected[:5],
                 **work_data,
             })
 

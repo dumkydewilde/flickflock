@@ -15,6 +15,7 @@ const { openMediaRequest, openPersonRequest, openPerson, openMedia } = useDetail
 const showModal = ref(false)
 const modalLoading = ref(false)
 const mediaDetail = ref(null)
+const selectedWork = ref(null)
 
 function posterUrl(item, size = 'w300') {
   return item.poster_path
@@ -34,6 +35,7 @@ function releaseYear(item) {
 }
 
 async function openMediaModal(work) {
+  selectedWork.value = work
   mediaDetail.value = null
   showModal.value = true
   modalLoading.value = true
@@ -271,6 +273,28 @@ watch(openPersonRequest, () => {
               <p v-if="mediaDetail.overview" class="text-body-2 mb-4" style="line-height: 1.5;">
                 {{ mediaDetail.overview }}
               </p>
+
+              <!-- Connected flock members ("Why this recommendation") -->
+              <div v-if="selectedWork?.connected_members?.length" class="mb-4">
+                <p class="text-overline text-medium-emphasis mb-2">Connected through your flock</p>
+                <div class="connected-members">
+                  <div
+                    v-for="member in selectedWork.connected_members"
+                    :key="member.id"
+                    class="connected-member"
+                    @click="openPersonDetail(member)"
+                  >
+                    <v-avatar :size="32" color="background">
+                      <v-img v-if="member.profile_path" :src="`https://image.tmdb.org/t/p/w92${member.profile_path}`" cover />
+                      <v-icon v-else icon="mdi-account" size="16" />
+                    </v-avatar>
+                    <div class="connected-info">
+                      <span class="text-caption font-weight-medium">{{ member.name }}</span>
+                      <span class="text-caption text-medium-emphasis">{{ member.known_for_department }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <!-- Streaming providers -->
               <div v-if="watchProviders" class="mb-4">
@@ -575,5 +599,32 @@ watch(openPersonRequest, () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.connected-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.connected-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.connected-member:hover {
+  background: rgba(228, 163, 58, 0.15);
+}
+
+.connected-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
 }
 </style>
