@@ -17,6 +17,14 @@ const modalLoading = ref(false)
 const mediaDetail = ref(null)
 const selectedWork = ref(null)
 
+function formatVotes(votes) {
+  const n = parseInt(votes, 10)
+  if (isNaN(n)) return ''
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}K`
+  return `${n}`
+}
+
 function posterUrl(item, size = 'w300') {
   return item.poster_path
     ? `https://image.tmdb.org/t/p/${size}${item.poster_path}`
@@ -251,9 +259,9 @@ watch(openPersonRequest, () => {
                     <span class="text-caption text-medium-emphasis">{{ releaseYear(mediaDetail) }}</span>
                     <span v-if="runtime" class="text-caption text-medium-emphasis">{{ runtime }}</span>
                     <v-chip v-if="mediaDetail.imdb_rating" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
-                      {{ mediaDetail.imdb_rating }}
+                      IMDb {{ mediaDetail.imdb_rating }}<span v-if="mediaDetail.imdb_votes" class="text-medium-emphasis ml-1">({{ formatVotes(mediaDetail.imdb_votes) }})</span>
                     </v-chip>
-                    <v-chip v-else-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary">
+                    <v-chip v-else-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
                       {{ mediaDetail.vote_average.toFixed(1) }}
                     </v-chip>
                   </div>
@@ -292,6 +300,80 @@ watch(openPersonRequest, () => {
                       <span class="text-caption font-weight-medium">{{ member.name }}</span>
                       <span class="text-caption text-medium-emphasis">{{ member.known_for_department }}</span>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Crew -->
+              <div v-if="mediaDetail.top_crew?.length" class="mb-4">
+                <p class="text-overline text-medium-emphasis mb-2">Crew</p>
+                <div class="cast-row">
+                  <div
+                    v-for="person in mediaDetail.top_crew"
+                    :key="`crew-${person.id}-${person.job}`"
+                    class="cast-item"
+                    @click="openPersonDetail(person)"
+                  >
+                    <v-avatar :size="40" color="background">
+                      <v-img v-if="profileUrl(person)" :src="profileUrl(person)" cover />
+                      <v-icon v-else icon="mdi-account" size="20" />
+                    </v-avatar>
+                    <div class="cast-info">
+                      <span class="text-caption font-weight-medium">{{ person.name }}</span>
+                      <span class="text-caption text-medium-emphasis">{{ person.job }}</span>
+                    </div>
+                    <v-spacer />
+                    <v-btn
+                      v-if="!isPersonSelected(person)"
+                      icon="mdi-plus"
+                      size="x-small"
+                      variant="tonal"
+                      color="primary"
+                      @click.stop="addPersonToFlock(person)"
+                    />
+                    <v-icon
+                      v-else
+                      icon="mdi-check-circle"
+                      size="20"
+                      color="info"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cast -->
+              <div v-if="mediaDetail.top_cast?.length" class="mb-4">
+                <p class="text-overline text-medium-emphasis mb-2">Cast</p>
+                <div class="cast-row">
+                  <div
+                    v-for="person in mediaDetail.top_cast"
+                    :key="person.id"
+                    class="cast-item"
+                    @click="openPersonDetail(person)"
+                  >
+                    <v-avatar :size="40" color="background">
+                      <v-img v-if="profileUrl(person)" :src="profileUrl(person)" cover />
+                      <v-icon v-else icon="mdi-account" size="20" />
+                    </v-avatar>
+                    <div class="cast-info">
+                      <span class="text-caption font-weight-medium">{{ person.name }}</span>
+                      <span class="text-caption text-medium-emphasis">{{ person.character }}</span>
+                    </div>
+                    <v-spacer />
+                    <v-btn
+                      v-if="!isPersonSelected(person)"
+                      icon="mdi-plus"
+                      size="x-small"
+                      variant="tonal"
+                      color="primary"
+                      @click.stop="addPersonToFlock(person)"
+                    />
+                    <v-icon
+                      v-else
+                      icon="mdi-check-circle"
+                      size="20"
+                      color="info"
+                    />
                   </div>
                 </div>
               </div>
@@ -365,50 +447,6 @@ watch(openPersonRequest, () => {
                 <p class="text-caption text-medium-emphasis mt-1" style="font-size: 10px;">
                   Streaming data by <a :href="watchProviders.link" target="_blank" rel="noopener" class="text-primary">JustWatch</a>
                 </p>
-              </div>
-
-              <!-- Crew -->
-              <div v-if="mediaDetail.top_crew?.length" class="mb-3">
-                <div v-for="person in mediaDetail.top_crew" :key="`crew-${person.id}-${person.job}`" class="text-caption">
-                  <span class="text-medium-emphasis">{{ person.job }}:</span> {{ person.name }}
-                </div>
-              </div>
-
-              <!-- Cast -->
-              <div v-if="mediaDetail.top_cast?.length" class="mb-2">
-                <p class="text-overline text-medium-emphasis mb-2">Cast</p>
-                <div class="cast-row">
-                  <div
-                    v-for="person in mediaDetail.top_cast"
-                    :key="person.id"
-                    class="cast-item"
-                    @click="openPersonDetail(person)"
-                  >
-                    <v-avatar :size="40" color="background">
-                      <v-img v-if="profileUrl(person)" :src="profileUrl(person)" cover />
-                      <v-icon v-else icon="mdi-account" size="20" />
-                    </v-avatar>
-                    <div class="cast-info">
-                      <span class="text-caption font-weight-medium">{{ person.name }}</span>
-                      <span class="text-caption text-medium-emphasis">{{ person.character }}</span>
-                    </div>
-                    <v-spacer />
-                    <v-btn
-                      v-if="!isPersonSelected(person)"
-                      icon="mdi-plus"
-                      size="x-small"
-                      variant="tonal"
-                      color="primary"
-                      @click.stop="addPersonToFlock(person)"
-                    />
-                    <v-icon
-                      v-else
-                      icon="mdi-check-circle"
-                      size="20"
-                      color="info"
-                    />
-                  </div>
-                </div>
               </div>
             </div>
           </template>

@@ -93,6 +93,15 @@ const knownFor = computed(() => {
     .slice(0, 6)
 })
 
+// Reverse lookup: which recommended works does this member appear in?
+const appearsInResults = computed(() => {
+  if (!selectedMember.value) return []
+  const memberId = selectedMember.value.id
+  return store.flockWorks
+    .filter(w => w.connected_members?.some(m => m.id === memberId))
+    .slice(0, 6)
+})
+
 const isAlreadySelected = computed(() => {
   if (!selectedMember.value) return false
   return store.selection.some(s => s.id === selectedMember.value.id)
@@ -176,6 +185,29 @@ watch(openMediaRequest, () => {
             <p v-if="personDetail.biography" class="text-body-2 mb-4 biography">
               {{ personDetail.biography.slice(0, 300) }}{{ personDetail.biography.length > 300 ? '...' : '' }}
             </p>
+
+            <!-- Appears in your results -->
+            <div v-if="appearsInResults.length" class="mb-4">
+              <p class="text-overline text-medium-emphasis mb-2">In your results</p>
+              <div class="known-for-grid">
+                <div v-for="work in appearsInResults" :key="work.id" class="known-for-item" @click="openWorkDetail(work)">
+                  <div class="known-for-poster">
+                    <v-img
+                      v-if="work.poster_path"
+                      :src="`https://image.tmdb.org/t/p/w92${work.poster_path}`"
+                      :aspect-ratio="2/3"
+                      cover
+                      class="rounded"
+                      width="64"
+                    />
+                    <div v-else class="poster-placeholder-sm rounded d-flex align-center justify-center">
+                      <v-icon icon="mdi-movie-outline" size="20" />
+                    </div>
+                  </div>
+                  <span class="text-caption known-for-title">{{ work.title || work.name }}</span>
+                </div>
+              </div>
+            </div>
 
             <div v-if="knownFor.length" class="mb-2">
               <p class="text-overline text-medium-emphasis mb-2">Known for</p>

@@ -80,7 +80,7 @@ onMounted(() => {
 
     <v-main>
       <!-- Home page content -->
-      <v-container v-if="isHome" fluid class="pa-4">
+      <v-container v-if="isHome" fluid class="pa-4 main-content">
         <!-- Search bar -->
         <div class="search-wrapper mb-6" style="position: relative;">
           <Search />
@@ -180,6 +180,12 @@ onMounted(() => {
 </template>
 
 <style>
+.main-content {
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .search-wrapper {
   max-width: 640px;
   margin: 0 auto;
