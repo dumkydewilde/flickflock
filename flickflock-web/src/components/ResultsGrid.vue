@@ -185,12 +185,14 @@ watch(openPersonRequest, () => {
             <v-icon icon="mdi-movie-outline" size="40" color="primary" />
           </div>
           <v-chip
+            v-if="work.member_count"
             class="score-badge"
             size="x-small"
             variant="flat"
-            :color="work.count >= 5 ? 'secondary' : work.count >= 2 ? 'primary' : 'surface'"
+            :color="work.member_count >= 4 ? 'secondary' : work.member_count >= 2 ? 'primary' : 'surface'"
+            prepend-icon="mdi-account-group"
           >
-            {{ work.count }}
+            {{ work.member_count }}
           </v-chip>
           <v-chip
             class="type-badge"
