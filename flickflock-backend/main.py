@@ -248,7 +248,16 @@ def get_media_details(content_id: int, media_type: str):
         except Exception:
             log.warning("Failed to fetch watch providers for %s/%d", media_type, content_id)
 
-        return {**details, "top_cast": top_cast, "top_crew": top_crew, "watch_providers": watch_providers}
+        # For TV shows, fetch external IDs to get imdb_id (movies already have it in details)
+        imdb_id = details.get("imdb_id")
+        if not imdb_id and media_type == "tv":
+            try:
+                external_ids = tmdb.get_external_ids(media_type, content_id)
+                imdb_id = external_ids.get("imdb_id")
+            except Exception:
+                log.warning("Failed to fetch external IDs for %s/%d", media_type, content_id)
+
+        return {**details, "imdb_id": imdb_id, "top_cast": top_cast, "top_crew": top_crew, "watch_providers": watch_providers}
     except Exception:
         log.exception("Failed to get details for %s/%d", media_type, content_id)
         raise HTTPException(404, "Content not found")

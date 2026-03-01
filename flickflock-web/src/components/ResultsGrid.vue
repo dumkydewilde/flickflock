@@ -385,6 +385,16 @@ watch(openPersonRequest, () => {
         </v-card-text>
 
         <v-card-actions class="pa-4 pt-0">
+          <v-btn
+            v-if="mediaDetail?.imdb_id"
+            variant="text"
+            :href="`https://www.imdb.com/title/${mediaDetail.imdb_id}`"
+            target="_blank"
+            size="small"
+          >
+            IMDb
+            <v-icon end icon="mdi-open-in-new" size="14" />
+          </v-btn>
           <v-spacer />
           <v-btn variant="text" @click="showModal = false">Close</v-btn>
         </v-card-actions>

@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useDisplay } from 'vuetify'
 import axios from 'axios'
+
+const { mdAndUp } = useDisplay()
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 const emit = defineEmits(['select'])
@@ -476,7 +479,18 @@ function tmdbImage(item) {
     @touchmove="onTouchMove"
     @touchend.passive="onTouchEnd"
   >
-    <div class="carousel-viewport">
+    <div class="carousel-outer">
+      <button
+        v-if="mdAndUp"
+        class="carousel-arrow carousel-arrow-left"
+        :disabled="currentPage === 0"
+        aria-label="Previous"
+        @click="prevPage"
+      >
+        <v-icon icon="mdi-chevron-left" size="28" />
+      </button>
+
+      <div class="carousel-viewport">
       <div
         ref="trackEl"
         class="carousel-track"
@@ -530,6 +544,17 @@ function tmdbImage(item) {
       </div>
     </div>
 
+      <button
+        v-if="mdAndUp"
+        class="carousel-arrow carousel-arrow-right"
+        :disabled="currentPage === totalPages - 1"
+        aria-label="Next"
+        @click="nextPage"
+      >
+        <v-icon icon="mdi-chevron-right" size="28" />
+      </button>
+    </div>
+
     <div class="carousel-controls mt-5">
       <div class="page-dots">
         <button
@@ -551,10 +576,52 @@ function tmdbImage(item) {
   user-select: none;
 }
 
+.carousel-outer {
+  display: flex;
+  align-items: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.carousel-arrow {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(43, 33, 49, 0.6);
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.carousel-arrow:hover:not(:disabled) {
+  background: rgba(228, 163, 58, 0.2);
+  border-color: rgba(228, 163, 58, 0.4);
+}
+
+.carousel-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.carousel-arrow-left {
+  margin-right: 12px;
+}
+
+.carousel-arrow-right {
+  margin-left: 12px;
+}
+
 .carousel-viewport {
   overflow: hidden;
   max-width: 700px;
   margin: 0 auto;
+  flex: 1;
+  min-width: 0;
 }
 
 .carousel-track {
@@ -574,6 +641,7 @@ function tmdbImage(item) {
   min-width: 100%;
   box-sizing: border-box;
   overflow: hidden;
+  padding: 0 16px;
 }
 
 .suggestion-item {
@@ -673,6 +741,7 @@ function tmdbImage(item) {
 @media (max-width: 600px) {
   .carousel-page {
     gap: 8px;
+    padding: 0;
   }
 
   .poster {
