@@ -217,7 +217,7 @@ watch(openPersonRequest, () => {
     </div>
 
     <!-- Media detail modal -->
-    <v-dialog v-model="showModal" max-width="520" scrollable>
+    <v-dialog v-model="showModal" max-width="640" scrollable>
       <v-card color="surface">
         <v-card-text class="pa-0">
           <div v-if="modalLoading" class="text-center py-12">
