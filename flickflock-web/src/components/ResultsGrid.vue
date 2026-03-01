@@ -225,7 +225,7 @@ watch(openPersonRequest, () => {
           </div>
 
           <template v-else-if="mediaDetail">
-            <!-- Backdrop banner -->
+            <!-- Backdrop banner with title overlaid -->
             <div class="modal-backdrop" :style="mediaDetail.backdrop_path ? { backgroundImage: `url(https://image.tmdb.org/t/p/w780${mediaDetail.backdrop_path})` } : {}">
               <div class="modal-top-btns">
                 <v-btn
@@ -243,37 +243,36 @@ watch(openPersonRequest, () => {
                   @click="showModal = false"
                 />
               </div>
-            </div>
-
-            <!-- Title row on solid background -->
-            <div class="modal-title-row">
-              <v-img
-                v-if="posterUrl(mediaDetail, 'w185')"
-                :src="posterUrl(mediaDetail, 'w185')"
-                :aspect-ratio="2/3"
-                cover
-                class="rounded-lg flex-shrink-0 modal-poster"
-                width="100"
-              />
-              <div class="modal-title-info">
-                <h2 class="text-h6 mb-1">{{ mediaDetail.title || mediaDetail.name }}</h2>
-                <div class="d-flex flex-wrap ga-2 align-center mb-2">
-                  <span class="text-caption text-medium-emphasis">{{ releaseYear(mediaDetail) }}</span>
-                  <span v-if="runtime" class="text-caption text-medium-emphasis">{{ runtime }}</span>
-                  <v-chip v-if="mediaDetail.imdb_rating" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
-                    IMDb {{ mediaDetail.imdb_rating }}<span v-if="mediaDetail.imdb_votes" class="text-medium-emphasis ml-1">({{ formatVotes(mediaDetail.imdb_votes) }})</span>
-                  </v-chip>
-                  <v-chip v-else-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
-                    {{ mediaDetail.vote_average.toFixed(1) }}
-                  </v-chip>
-                </div>
-                <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1 mb-1">
-                  <v-chip v-for="g in mediaDetail.genres.slice(0, 3)" :key="g.id" size="x-small" variant="outlined">
-                    {{ g.name }}
-                  </v-chip>
-                </div>
-                <div v-if="mediaDetail.awards?.text" class="text-caption text-medium-emphasis" style="line-height: 1.4;">
-                  {{ mediaDetail.awards.text }}
+              <div class="modal-backdrop-gradient"></div>
+              <div class="modal-title-row">
+                <v-img
+                  v-if="posterUrl(mediaDetail, 'w185')"
+                  :src="posterUrl(mediaDetail, 'w185')"
+                  :aspect-ratio="2/3"
+                  cover
+                  class="rounded-lg flex-shrink-0 modal-poster"
+                  width="100"
+                />
+                <div class="modal-title-info">
+                  <h2 class="text-h6 mb-1">{{ mediaDetail.title || mediaDetail.name }}</h2>
+                  <div class="d-flex flex-wrap ga-2 align-center mb-2">
+                    <span class="text-caption" style="opacity: 0.85;">{{ releaseYear(mediaDetail) }}</span>
+                    <span v-if="runtime" class="text-caption" style="opacity: 0.85;">{{ runtime }}</span>
+                    <v-chip v-if="mediaDetail.imdb_rating" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
+                      IMDb {{ mediaDetail.imdb_rating }}<span v-if="mediaDetail.imdb_votes" class="text-medium-emphasis ml-1">({{ formatVotes(mediaDetail.imdb_votes) }})</span>
+                    </v-chip>
+                    <v-chip v-else-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
+                      {{ mediaDetail.vote_average.toFixed(1) }}
+                    </v-chip>
+                  </div>
+                  <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1 mb-1">
+                    <v-chip v-for="g in mediaDetail.genres.slice(0, 3)" :key="g.id" size="x-small" variant="outlined" color="white">
+                      {{ g.name }}
+                    </v-chip>
+                  </div>
+                  <div v-if="mediaDetail.awards?.text" class="text-caption" style="line-height: 1.4; opacity: 0.85;">
+                    {{ mediaDetail.awards.text }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -599,27 +598,43 @@ watch(openPersonRequest, () => {
 
 .modal-backdrop {
   position: relative;
-  height: 180px;
+  min-height: 280px;
   background-size: cover;
   background-position: center top;
   background-color: rgba(21, 16, 24, 0.6);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.modal-backdrop-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 20%,
+    rgba(var(--v-theme-surface), 0.6) 55%,
+    rgba(var(--v-theme-surface), 0.95) 80%,
+    rgb(var(--v-theme-surface)) 100%
+  );
+  pointer-events: none;
 }
 
 .modal-title-row {
   display: flex;
   gap: 16px;
-  padding: 0 16px 16px;
+  padding: 12px 16px 16px;
   position: relative;
+  z-index: 1;
 }
 
 .modal-poster {
-  margin-top: -40px;
   z-index: 1;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .modal-title-info {
-  padding-top: 8px;
+  padding-top: 4px;
   min-width: 0;
 }
 
