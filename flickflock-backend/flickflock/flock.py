@@ -283,8 +283,9 @@ class Flock:
                     "role": ", ".join(roles[:2]) if roles else "",
                 })
 
-            # Strip internal _role field from work data
-            clean_data = {k: v for k, v in work_data.items() if not k.startswith("_")}
+            # Strip internal fields (keep _genre_ids for downstream filtering)
+            clean_data = {k: v for k, v in work_data.items()
+                          if not k.startswith("_") or k == "_genre_ids"}
 
             results.append({
                 "count": round(score, 2),

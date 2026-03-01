@@ -93,6 +93,16 @@ def flock_results(flock_id: str):
             if vote_count >= 10 and vote_avg > 0:
                 quality = vote_avg / 10.0  # normalize to 0..1
                 w["count"] = round(w["count"] * (0.7 + 0.3 * quality), 2)
+        # Animation penalty: voice roles in animated content are less relevant
+        ANIMATION_GENRE_ID = 16
+        for w in works:
+            genre_ids = w.get("_genre_ids") or []
+            if ANIMATION_GENRE_ID in genre_ids:
+                w["count"] = round(w["count"] * 0.5, 2)
+
+        for w in works:
+            w.pop("_genre_ids", None)
+
         works.sort(key=lambda x: x["count"], reverse=True)
 
         # Enrich connected_member_ids with names/profile info for "why this" display
@@ -348,7 +358,7 @@ def person_details_func(id):
 
 
 # Title patterns for awards ceremonies and similar non-recommendation content
-_EXCLUDED_TITLE_PATTERNS = {"the oscars", "academy awards", "oscar", "golden globes", "emmy awards", "grammy awards", "tony awards", "screen actors guild awards", "sag awards", "bafta"}
+_EXCLUDED_TITLE_PATTERNS = {"the oscars", "academy awards", "oscar", "golden globes", "emmy awards", "grammy awards", "tony awards", "screen actors guild awards", "sag awards", "bafta", "the best of", "saturday night live:"}
 
 
 def tmdb_movies_from_person(id):
@@ -380,6 +390,7 @@ def tmdb_movies_from_person(id):
         results.append({
             "title": title,
             "_role": role,
+            "_genre_ids": i.get("genre_ids", []),
             **{k: i.get(k, "") for k in keys},
         })
     return results
