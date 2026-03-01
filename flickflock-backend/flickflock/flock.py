@@ -237,6 +237,7 @@ class Flock:
 
         works_by_id = {}
         works_member_scores = defaultdict(dict)  # {work_id: {person_id: score}}
+        works_member_roles = defaultdict(lambda: defaultdict(list))  # {work_id: {person_id: [roles]}}
         works_direct_boost = defaultdict(float)
 
         selected_work_ids = set()
@@ -252,6 +253,10 @@ class Flock:
                     works_by_id[wid] = w
                 works_member_scores[wid][person_id] = score
 
+                role = w.get("_role", "")
+                if role:
+                    works_member_roles[wid][person_id].append(role)
+
                 if person_id in self.direct_person_ids:
                     works_direct_boost[wid] += 0.5
 
@@ -263,17 +268,28 @@ class Flock:
 
             score = (weighted_score + direct_boost) * penalty
 
-            # Top connected members sorted by their flock score
+            # Top connected members sorted by their flock score, with roles
             connected = sorted(
                 works_member_scores[wid].keys(),
                 key=lambda pid: works_member_scores[wid][pid],
                 reverse=True,
             )
 
+            connected_with_roles = []
+            for pid in connected[:5]:
+                roles = list(dict.fromkeys(works_member_roles[wid].get(pid, [])))
+                connected_with_roles.append({
+                    "id": pid,
+                    "role": ", ".join(roles[:2]) if roles else "",
+                })
+
+            # Strip internal _role field from work data
+            clean_data = {k: v for k, v in work_data.items() if not k.startswith("_")}
+
             results.append({
                 "count": round(score, 2),
-                "connected_member_ids": connected[:5],
-                **work_data,
+                "connected_member_ids": connected_with_roles,
+                **clean_data,
             })
 
         return sorted(results, key=lambda x: x["count"], reverse=True)

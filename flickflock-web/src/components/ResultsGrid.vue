@@ -217,7 +217,7 @@ watch(openPersonRequest, () => {
     </div>
 
     <!-- Media detail modal -->
-    <v-dialog v-model="showModal" max-width="520" scrollable>
+    <v-dialog v-model="showModal" max-width="640" scrollable>
       <v-card color="surface">
         <v-card-text class="pa-0">
           <div v-if="modalLoading" class="text-center py-12">
@@ -225,9 +225,8 @@ watch(openPersonRequest, () => {
           </div>
 
           <template v-else-if="mediaDetail">
-            <!-- Backdrop / poster header -->
-            <div class="modal-header" :style="mediaDetail.backdrop_path ? { backgroundImage: `linear-gradient(to bottom, transparent 30%, rgb(var(--v-theme-surface)) 100%), url(https://image.tmdb.org/t/p/w780${mediaDetail.backdrop_path})` } : {}">
-
+            <!-- Backdrop banner with title overlaid -->
+            <div class="modal-backdrop" :style="mediaDetail.backdrop_path ? { backgroundImage: `url(https://image.tmdb.org/t/p/w780${mediaDetail.backdrop_path})` } : {}">
               <div class="modal-top-btns">
                 <v-btn
                   :icon="bookmarkStore.isBookmarked(mediaDetail?.id, mediaDetail?.media_type || 'movie') ? 'mdi-bookmark' : 'mdi-bookmark-outline'"
@@ -244,20 +243,22 @@ watch(openPersonRequest, () => {
                   @click="showModal = false"
                 />
               </div>
-              <div class="d-flex pa-4 pt-12 ga-4" style="position: relative;">
+              <div class="modal-backdrop-gradient"></div>
+              <div class="modal-backdrop-spacer"></div>
+              <div class="modal-title-row">
                 <v-img
                   v-if="posterUrl(mediaDetail, 'w185')"
                   :src="posterUrl(mediaDetail, 'w185')"
                   :aspect-ratio="2/3"
                   cover
-                  class="rounded-lg flex-shrink-0"
+                  class="rounded-lg flex-shrink-0 modal-poster"
                   width="100"
                 />
-                <div>
+                <div class="modal-title-info">
                   <h2 class="text-h6 mb-1">{{ mediaDetail.title || mediaDetail.name }}</h2>
                   <div class="d-flex flex-wrap ga-2 align-center mb-2">
-                    <span class="text-caption text-medium-emphasis">{{ releaseYear(mediaDetail) }}</span>
-                    <span v-if="runtime" class="text-caption text-medium-emphasis">{{ runtime }}</span>
+                    <span class="text-caption" style="opacity: 0.85;">{{ releaseYear(mediaDetail) }}</span>
+                    <span v-if="runtime" class="text-caption" style="opacity: 0.85;">{{ runtime }}</span>
                     <v-chip v-if="mediaDetail.imdb_rating" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
                       IMDb {{ mediaDetail.imdb_rating }}<span v-if="mediaDetail.imdb_votes" class="text-medium-emphasis ml-1">({{ formatVotes(mediaDetail.imdb_votes) }})</span>
                     </v-chip>
@@ -266,18 +267,18 @@ watch(openPersonRequest, () => {
                     </v-chip>
                   </div>
                   <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1 mb-1">
-                    <v-chip v-for="g in mediaDetail.genres.slice(0, 3)" :key="g.id" size="x-small" variant="outlined">
+                    <v-chip v-for="g in mediaDetail.genres.slice(0, 3)" :key="g.id" size="x-small" variant="outlined" color="white">
                       {{ g.name }}
                     </v-chip>
                   </div>
-                  <div v-if="mediaDetail.awards?.text" class="text-caption text-medium-emphasis" style="line-height: 1.4;">
+                  <div v-if="mediaDetail.awards?.text" class="text-caption" style="line-height: 1.4; opacity: 0.85;">
                     {{ mediaDetail.awards.text }}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="px-4 pb-4">
+            <div class="px-4 pb-4" style="padding-top: 48px;">
               <p v-if="mediaDetail.overview" class="text-body-2 mb-4" style="line-height: 1.5;">
                 {{ mediaDetail.overview }}
               </p>
@@ -298,7 +299,7 @@ watch(openPersonRequest, () => {
                     </v-avatar>
                     <div class="connected-info">
                       <span class="text-caption font-weight-medium">{{ member.name }}</span>
-                      <span class="text-caption text-medium-emphasis">{{ member.known_for_department }}</span>
+                      <span class="text-caption text-medium-emphasis">{{ member.role }}</span>
                     </div>
                   </div>
                 </div>
@@ -596,14 +597,49 @@ watch(openPersonRequest, () => {
   border-radius: 6px;
 }
 
-.modal-header {
+.modal-backdrop {
   position: relative;
   background-size: cover;
   background-position: center top;
-  min-height: 160px;
+  background-color: rgba(21, 16, 24, 0.6);
+}
+
+.modal-backdrop-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 25%,
+    rgba(var(--v-theme-surface), 0.55) 50%,
+    rgba(var(--v-theme-surface), 0.92) 75%,
+    rgb(var(--v-theme-surface)) 100%
+  );
+  pointer-events: none;
+}
+
+.modal-backdrop-spacer {
+  height: 120px;
+}
+
+.modal-title-row {
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 16px 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.modal-poster {
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+  margin-bottom: -40px;
+}
+
+.modal-title-info {
+  padding-bottom: 4px;
+  min-width: 0;
+  align-self: flex-end;
 }
 
 .cast-row {
