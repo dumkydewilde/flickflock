@@ -225,9 +225,8 @@ watch(openPersonRequest, () => {
           </div>
 
           <template v-else-if="mediaDetail">
-            <!-- Backdrop / poster header -->
-            <div class="modal-header" :style="mediaDetail.backdrop_path ? { backgroundImage: `linear-gradient(to bottom, transparent 30%, rgb(var(--v-theme-surface)) 100%), url(https://image.tmdb.org/t/p/w780${mediaDetail.backdrop_path})` } : {}">
-
+            <!-- Backdrop banner -->
+            <div class="modal-backdrop" :style="mediaDetail.backdrop_path ? { backgroundImage: `url(https://image.tmdb.org/t/p/w780${mediaDetail.backdrop_path})` } : {}">
               <div class="modal-top-btns">
                 <v-btn
                   :icon="bookmarkStore.isBookmarked(mediaDetail?.id, mediaDetail?.media_type || 'movie') ? 'mdi-bookmark' : 'mdi-bookmark-outline'"
@@ -244,35 +243,37 @@ watch(openPersonRequest, () => {
                   @click="showModal = false"
                 />
               </div>
-              <div class="d-flex pa-4 pt-12 ga-4" style="position: relative;">
-                <v-img
-                  v-if="posterUrl(mediaDetail, 'w185')"
-                  :src="posterUrl(mediaDetail, 'w185')"
-                  :aspect-ratio="2/3"
-                  cover
-                  class="rounded-lg flex-shrink-0"
-                  width="100"
-                />
-                <div>
-                  <h2 class="text-h6 mb-1">{{ mediaDetail.title || mediaDetail.name }}</h2>
-                  <div class="d-flex flex-wrap ga-2 align-center mb-2">
-                    <span class="text-caption text-medium-emphasis">{{ releaseYear(mediaDetail) }}</span>
-                    <span v-if="runtime" class="text-caption text-medium-emphasis">{{ runtime }}</span>
-                    <v-chip v-if="mediaDetail.imdb_rating" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
-                      IMDb {{ mediaDetail.imdb_rating }}<span v-if="mediaDetail.imdb_votes" class="text-medium-emphasis ml-1">({{ formatVotes(mediaDetail.imdb_votes) }})</span>
-                    </v-chip>
-                    <v-chip v-else-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
-                      {{ mediaDetail.vote_average.toFixed(1) }}
-                    </v-chip>
-                  </div>
-                  <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1 mb-1">
-                    <v-chip v-for="g in mediaDetail.genres.slice(0, 3)" :key="g.id" size="x-small" variant="outlined">
-                      {{ g.name }}
-                    </v-chip>
-                  </div>
-                  <div v-if="mediaDetail.awards?.text" class="text-caption text-medium-emphasis" style="line-height: 1.4;">
-                    {{ mediaDetail.awards.text }}
-                  </div>
+            </div>
+
+            <!-- Title row on solid background -->
+            <div class="modal-title-row">
+              <v-img
+                v-if="posterUrl(mediaDetail, 'w185')"
+                :src="posterUrl(mediaDetail, 'w185')"
+                :aspect-ratio="2/3"
+                cover
+                class="rounded-lg flex-shrink-0 modal-poster"
+                width="100"
+              />
+              <div class="modal-title-info">
+                <h2 class="text-h6 mb-1">{{ mediaDetail.title || mediaDetail.name }}</h2>
+                <div class="d-flex flex-wrap ga-2 align-center mb-2">
+                  <span class="text-caption text-medium-emphasis">{{ releaseYear(mediaDetail) }}</span>
+                  <span v-if="runtime" class="text-caption text-medium-emphasis">{{ runtime }}</span>
+                  <v-chip v-if="mediaDetail.imdb_rating" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
+                    IMDb {{ mediaDetail.imdb_rating }}<span v-if="mediaDetail.imdb_votes" class="text-medium-emphasis ml-1">({{ formatVotes(mediaDetail.imdb_votes) }})</span>
+                  </v-chip>
+                  <v-chip v-else-if="mediaDetail.vote_average" size="x-small" variant="tonal" color="primary" prepend-icon="mdi-star">
+                    {{ mediaDetail.vote_average.toFixed(1) }}
+                  </v-chip>
+                </div>
+                <div v-if="mediaDetail.genres" class="d-flex flex-wrap ga-1 mb-1">
+                  <v-chip v-for="g in mediaDetail.genres.slice(0, 3)" :key="g.id" size="x-small" variant="outlined">
+                    {{ g.name }}
+                  </v-chip>
+                </div>
+                <div v-if="mediaDetail.awards?.text" class="text-caption text-medium-emphasis" style="line-height: 1.4;">
+                  {{ mediaDetail.awards.text }}
                 </div>
               </div>
             </div>
@@ -596,14 +597,30 @@ watch(openPersonRequest, () => {
   border-radius: 6px;
 }
 
-.modal-header {
+.modal-backdrop {
   position: relative;
+  height: 180px;
   background-size: cover;
   background-position: center top;
-  min-height: 160px;
+  background-color: rgba(21, 16, 24, 0.6);
+}
+
+.modal-title-row {
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 16px 16px;
+  position: relative;
+}
+
+.modal-poster {
+  margin-top: -40px;
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.modal-title-info {
+  padding-top: 8px;
+  min-width: 0;
 }
 
 .cast-row {
