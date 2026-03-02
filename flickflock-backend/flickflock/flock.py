@@ -193,13 +193,23 @@ class Flock:
             if entities and not isinstance(entities[0], dict):
                 entities = [{"id": e, "weight": DEFAULT_DEPARTMENT_WEIGHT} for e in entities]
 
-            # For large transitive entries (person expansion can yield 200+ people),
-            # keep only the top contributors by weight so key collaborators
-            # aren't diluted to near-zero.
+            # For large transitive entries (person expansion can yield 300+
+            # entities across 20 works), merge duplicates by person_id and sum
+            # their weights, then keep only the top contributors.  Summing
+            # means a lead actor in 5 Statham works (3.0 × 5 = 15.0) outranks
+            # a one-off director (5.0), naturally surfacing repeat collaborators
+            # instead of being dominated by one-off crew entries.
             source_type = entry.get("source_type", "")
             if source_type == "person_transitive" and len(entities) > _TRANSITIVE_CAP:
+                merged = {}
+                for e in entities:
+                    pid = e["id"]
+                    if pid in merged:
+                        merged[pid]["weight"] += e.get("weight", DEFAULT_DEPARTMENT_WEIGHT)
+                    else:
+                        merged[pid] = dict(e)  # copy so we don't mutate original
                 entities = sorted(
-                    entities,
+                    merged.values(),
                     key=lambda e: e.get("weight", DEFAULT_DEPARTMENT_WEIGHT),
                     reverse=True,
                 )[:_TRANSITIVE_CAP]

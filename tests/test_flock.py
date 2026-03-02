@@ -220,6 +220,33 @@ def test_transitive_cap_preserves_key_collaborators():
     assert scores[1] > 0.01
 
 
+def test_transitive_cap_deduplicates_and_sums_weights():
+    """Repeat collaborators should outrank one-off crew after dedup + sum."""
+    flock = Flock(db_type="local")
+
+    # Simulate a person whose transitive entry has:
+    # - A lead actor appearing in 5 works (3.0 × 5 = 15.0 aggregate)
+    # - Many one-off directors (5.0 each)
+    transitive = []
+    # Repeat actor (id=42): appears in 5 works as lead
+    for _ in range(5):
+        transitive.append({"id": 42, "department": "Acting", "order": 0})
+    # 60 unique one-off directors
+    for i in range(60):
+        transitive.append({"id": 2000 + i, "department": "Directing"})
+    # Filler crew to push past the cap
+    for i in range(100):
+        transitive.append({"id": 3000 + i, "department": "Crew"})
+
+    flock.add_to_flock(transitive, primary_id=99, source_type="person_transitive")
+
+    scores = flock.score_flock()
+    # The repeat actor (aggregate weight 15.0) should survive the cap
+    # and score meaningfully
+    assert 42 in scores, "Repeat actor should survive transitive cap"
+    assert scores[42] > 0
+
+
 def test_collaboration_density_bonus():
     """Works with multiple connected members should score higher."""
     flock = Flock(db_type="local")
