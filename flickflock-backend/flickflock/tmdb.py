@@ -185,7 +185,7 @@ class TMDB:
             ))
         return relations
 
-    def get_person_relations_filtered(self, person_id, max_works=10, max_cast_per_work=15):
+    def get_person_relations_filtered(self, person_id, max_works=20, max_cast_per_work=15):
         """Get collaborators from a person's top works only (filtered expansion).
 
         Used for transitive connections: limits to top N works by popularity,

@@ -15,6 +15,11 @@ DEPARTMENT_WEIGHTS = {
 }
 DEFAULT_DEPARTMENT_WEIGHT = 0.5
 
+# Max entities kept when scoring oversized person-transitive entries.
+# Person expansion can yield 200+ people; keeping only the top contributors
+# prevents key collaborators from being diluted to near-zero.
+_TRANSITIVE_CAP = 50
+
 _DB_PATH = os.environ.get("FLOCK_DB_PATH", os.path.join(os.path.dirname(__file__), "..", "data", "flock.db"))
 
 
@@ -188,6 +193,17 @@ class Flock:
             if entities and not isinstance(entities[0], dict):
                 entities = [{"id": e, "weight": DEFAULT_DEPARTMENT_WEIGHT} for e in entities]
 
+            # For large transitive entries (person expansion can yield 200+ people),
+            # keep only the top contributors by weight so key collaborators
+            # aren't diluted to near-zero.
+            source_type = entry.get("source_type", "")
+            if source_type == "person_transitive" and len(entities) > _TRANSITIVE_CAP:
+                entities = sorted(
+                    entities,
+                    key=lambda e: e.get("weight", DEFAULT_DEPARTMENT_WEIGHT),
+                    reverse=True,
+                )[:_TRANSITIVE_CAP]
+
             # Normalize: each selection contributes a budget of 1.0
             total_weight = sum(e.get("weight", DEFAULT_DEPARTMENT_WEIGHT) for e in entities)
             if total_weight == 0:
@@ -266,7 +282,13 @@ class Flock:
             direct_boost = works_direct_boost.get(wid, 0)
             penalty = 0.1 if wid in selected_work_ids else 1.0
 
-            score = (weighted_score + direct_boost) * penalty
+            # Collaboration density bonus: works with multiple connected members
+            # get a multiplicative boost — a "reunion" of flock members is a
+            # stronger signal than a single-member connection.
+            member_count = len(works_member_scores[wid])
+            collab_bonus = 1.0 + 0.25 * math.log(max(member_count, 1))
+
+            score = (weighted_score + direct_boost) * penalty * collab_bonus
 
             # Top connected members sorted by their flock score, with roles
             connected = sorted(

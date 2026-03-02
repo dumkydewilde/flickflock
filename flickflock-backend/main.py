@@ -76,7 +76,7 @@ def flock_results(flock_id: str):
         raise HTTPException(400, "Invalid Flock ID")
     try:
         f = Flock(flock_id=flock_id)
-        works = f.get_flock_works(tmdb_movies_from_person, most_common=20)
+        works = f.get_flock_works(tmdb_movies_from_person, most_common=50)
 
         # Filter out low-quality entries: no overview or very few votes
         works = [
