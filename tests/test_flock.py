@@ -1,5 +1,6 @@
+import math
 import pytest
-from flickflock.flock import Flock, compute_entity_weight, cast_order_weight
+from flickflock.flock import Flock, compute_entity_weight, cast_order_weight, _TRANSITIVE_CAP
 
 
 def test_flock():
@@ -197,3 +198,75 @@ def test_sqlite_persistence():
     assert loaded.selection[0]["id"] == 10
     assert len(loaded.flock_entries) == 1
     assert len(loaded.flock_entries[0]["entities"]) == 2
+
+
+def test_transitive_cap_preserves_key_collaborators():
+    """Large transitive entries should be capped so key people aren't diluted."""
+    flock = Flock(db_type="local")
+
+    # A director that also appears via movie entry
+    flock.add_to_flock([
+        {"id": 1, "department": "Directing"},
+        {"id": 2, "department": "Acting", "order": 0},
+    ], primary_id="movie_1", source_type="movie")
+
+    # Oversized transitive entry: 1 director + many crew
+    transitive = [{"id": 1, "department": "Directing"}]
+    transitive += [{"id": 1000 + i, "department": "Crew"} for i in range(_TRANSITIVE_CAP + 50)]
+    flock.add_to_flock(transitive, primary_id=42, source_type="person_transitive")
+
+    scores = flock.score_flock()
+    # Director (id=1) should still score meaningfully despite the oversized entry
+    assert scores[1] > 0.01
+
+
+def test_collaboration_density_bonus():
+    """Works with multiple connected members should score higher."""
+    flock = Flock(db_type="local")
+    flock.add_to_flock([
+        {"id": 1, "department": "Directing"},
+        {"id": 2, "department": "Acting", "order": 0},
+        {"id": 3, "department": "Acting", "order": 1},
+    ], primary_id="movie_1", source_type="movie")
+
+    def mock_works(person_id):
+        if person_id == 1:
+            # Director appears in both works
+            return [
+                {"id": 50, "title": "Multi-member work"},
+                {"id": 60, "title": "Solo work"},
+            ]
+        elif person_id == 2:
+            return [{"id": 50, "title": "Multi-member work"}]
+        elif person_id == 3:
+            return [{"id": 50, "title": "Multi-member work"}]
+        return []
+
+    results = flock.get_flock_works(mock_works)
+    multi = next(w for w in results if w["id"] == 50)
+    solo = next(w for w in results if w["id"] == 60)
+
+    # Multi-member work gets collaboration bonus on top of its higher base score
+    assert multi["count"] > solo["count"]
+    # The bonus should be log-based: 1 + 0.25 * log(3) ≈ 1.27x for 3 members
+    # vs 1.0x for 1 member — verify the ratio exceeds raw score ratio
+    raw_multi_score = sum(flock.flock[pid] for pid in [1, 2, 3])
+    raw_solo_score = flock.flock[1]
+    expected_bonus_ratio = (1.0 + 0.25 * math.log(3)) / 1.0
+    actual_ratio = multi["count"] / solo["count"]
+    assert actual_ratio > raw_multi_score / raw_solo_score
+
+
+def test_transitive_small_entry_unaffected():
+    """Transitive entries smaller than the cap should be scored normally."""
+    flock = Flock(db_type="local")
+
+    small_transitive = [
+        {"id": i, "department": "Acting", "order": i}
+        for i in range(1, 11)
+    ]
+    flock.add_to_flock(small_transitive, primary_id=42, source_type="person_transitive")
+
+    scores = flock.score_flock()
+    # All 10 people should be present (none trimmed)
+    assert len(scores) == 10
